@@ -1,0 +1,194 @@
+import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
+import logo from '../../assets/logo.svg'
+import { api } from '../../api/client'
+
+interface MainLayoutProps {
+  children: ReactNode
+}
+
+type RoleKey = 'author' | 'editor' | 'reviewer' | 'designer'
+
+const roleOptions: Record<RoleKey, string> = {
+  author: 'Автор',
+  editor: 'Редактор',
+  reviewer: 'Рецензент',
+  designer: 'Верстальщик',
+}
+
+const roleNav: Record<
+  RoleKey,
+  {
+    title: string
+    items: { label: string; path?: string; tag?: string }[]
+  }[]
+> = {
+  author: [
+    {
+      title: 'Подача и договоры',
+      items: [
+        { label: 'Мои статьи', path: '/cabinet/submissions' },
+        { label: 'Подача статьи', path: '/cabinet/submission' },
+        { label: 'Договор', path: '/authors/contract' },
+        { label: 'Профиль', path: '/cabinet/profile' },
+      ],
+    },
+  ],
+  editor: [
+    {
+      title: 'Рабочая панель',
+      items: [
+        { label: 'Все статьи', path: '/cabinet/editorial' },
+        { label: 'Назначения рецензентам', path: '/cabinet/reviews' },
+        { label: 'Профиль', path: '/cabinet/profile' },
+      ],
+    },
+  ],
+  reviewer: [
+    {
+      title: 'Рецензирование',
+      items: [
+        { label: 'Назначенные статьи', path: '/cabinet/reviews' },
+        { label: 'Профиль', path: '/cabinet/profile' },
+      ],
+    },
+  ],
+  designer: [
+    {
+      title: 'Верстка',
+      items: [
+        { label: 'Очередь верстки', path: '/cabinet/layout' },
+        { label: 'Готовые к выпуску', tag: 'скоро' },
+        { label: 'Профиль', path: '/cabinet/profile' },
+      ],
+    },
+  ],
+}
+
+const allRoles: RoleKey[] = ['author', 'editor', 'reviewer', 'designer']
+const isRoleKey = (value: string): value is RoleKey => allRoles.includes(value as RoleKey)
+
+export function MainLayout({ children }: MainLayoutProps) {
+  const [activeRole, setActiveRole] = useState<RoleKey>('author')
+  const [availableRoles, setAvailableRoles] = useState<RoleKey[]>(allRoles)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    let isMounted = true
+    const loadRoles = async () => {
+      try {
+        const response = await api.get<{ user_id: string; roles: string[] }>('/users/me/roles')
+        const roles = (response.roles || []).filter(isRoleKey)
+        const nextRoles: RoleKey[] = roles.length > 0 ? roles : ['author']
+        if (!isMounted) return
+        setAvailableRoles(nextRoles)
+        setActiveRole((prev) => (nextRoles.includes(prev) ? prev : nextRoles[0]))
+      } catch (error) {
+        console.error('Failed to load roles', error)
+        if (!isMounted) return
+        setAvailableRoles(['author'])
+        setActiveRole('author')
+      }
+    }
+    loadRoles()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const sections = useMemo(() => roleNav[activeRole], [activeRole])
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="sidebar__brand">
+          <Link to="/" className="brand--compact">
+            <div className="brand-mark">
+              <img src={logo} alt="Логотип" className="brand-logo brand-logo--plain" />
+            </div>
+            <div>
+              <div className="brand-title">известия университета "Туран-Астана"</div>
+            </div>
+          </Link>
+        </div>
+
+        <div className="role-switch">
+          {availableRoles.map((role) => (
+            <button
+              key={role}
+              type="button"
+              className={`role-chip ${activeRole === role ? 'role-chip--active' : ''}`}
+              onClick={() => setActiveRole(role)}
+            >
+              {roleOptions[role]}
+            </button>
+          ))}
+        </div>
+
+        <nav className="sidebar__nav">
+          {sections.map((section) => (
+            <div className="sidebar__section" key={section.title}>
+              <div className="sidebar__section-top">
+                <div className="sidebar__section-title">{section.title}</div>
+              </div>
+              <div className="sidebar__links">
+                {section.items.map((item) =>
+                  item.path ? (
+                    <NavLink
+                      key={item.label}
+                      to={item.path}
+                      className={({ isActive }) =>
+                        ['sidebar__link', isActive ? 'sidebar__link--active' : ''].join(' ')
+                      }
+                    >
+                      <span>{item.label}</span>
+                      {item.tag ? <span className="sidebar__tag">{item.tag}</span> : null}
+                    </NavLink>
+                  ) : (
+                    <div key={item.label} className="sidebar__link sidebar__link--static">
+                      <span>{item.label}</span>
+                      {item.tag ? <span className="sidebar__tag">{item.tag}</span> : null}
+                    </div>
+                  ),
+                )}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        <div className="sidebar__footer">
+          <div className="sidebar__footer-title">Resources</div>
+          <div className="sidebar__footer-links">
+            <a href="#">Terms & Policies</a>
+            <a href="#">Privacy</a>
+          </div>
+          <button
+            className="button button--ghost button--compact"
+            type="button"
+            onClick={() => {
+              api.logout()
+              navigate("/login")
+            }}
+          >
+            Logout
+          </button>
+        </div>
+      </aside>
+      <div className="app-body">
+        <main className="app-main">{children}</main>
+        <footer className="app-footer">
+          <div className="footer__brand">
+            <div className="brand-mark">
+              <img src={logo} alt="Логотип" className="brand-logo" />
+            </div>
+          </div>
+          <div className="footer__meta">
+            <span className="meta-label">c 2025</span>
+            <span className="meta-label">Все права защищены</span>
+          </div>
+        </footer>
+      </div>
+    </div>
+  )
+}
