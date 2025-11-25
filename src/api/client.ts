@@ -83,19 +83,22 @@ const request = async <T>(path: string, method: HttpMethod = 'GET', options: Req
   const { params, json, headers, ...rest } = options
   const url = buildUrl(path, params)
 
-  const makeRequest = async () =>
-    fetch(url, {
+  const makeRequest = async () => {
+    const isFormData = rest.body instanceof FormData
+
+    const resolvedHeaders: HeadersInit = {
+      ...(json && !isFormData ? { 'Content-Type': 'application/json' } : {}),
+      ...(currentTokens?.accessToken ? { Authorization: `Bearer ${currentTokens.accessToken}` } : {}),
+      ...(headers || {}),
+    }
+
+    return fetch(url, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(currentTokens?.accessToken
-          ? { Authorization: `${currentTokens.tokenType ?? 'Bearer'} ${currentTokens.accessToken}` }
-          : {}),
-        ...(headers || {}),
-      },
-      body: json ? JSON.stringify(json) : undefined,
+      headers: resolvedHeaders,
+      body: json ? JSON.stringify(json) : rest.body,
       ...rest,
     })
+  }
 
   let response = await makeRequest()
   if (response.status === 401) {

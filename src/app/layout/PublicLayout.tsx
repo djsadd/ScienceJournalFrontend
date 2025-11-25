@@ -24,26 +24,26 @@ const topNav: NavItem[] = [
 const dropdownNav: NavItem[] = [
   {
     href: '/editorial',
-    label: 'Редакция',
+    label: 'Редколлегия',
     children: [
-      { href: '/editorial', label: 'Редакционный совет' },
+      { href: '/editorial', label: 'Редколлегия и рецензенты' },
       { href: '/policies', label: 'Редакционная политика' },
     ],
   },
   {
     href: '/policies',
-    label: 'Политики и рецензирование',
+    label: 'Правила и политика',
     children: [
       { href: '/policies/ethics', label: 'Публикационная этика' },
-      { href: '/policies/ai', label: 'AI и проверка текстов' },
-      { href: '/policies/review', label: 'Рецензирование' },
+      { href: '/policies/ai', label: 'Политика по использованию ИИ' },
+      { href: '/policies/review', label: 'Регламент рецензирования' },
     ],
   },
   {
     href: '/authors',
     label: 'Авторам',
     children: [
-      { href: '/authors/requirements', label: 'Требования к рукописям' },
+      { href: '/authors/requirements', label: 'Требования к статьям' },
       { href: '/authors/contract', label: 'Авторский договор' },
     ],
   },
@@ -73,7 +73,12 @@ export function PublicLayout({ children }: PublicLayoutProps) {
           {openDropdown === item.href && (
             <div className="nav-dropdown__menu" onMouseLeave={() => handleOpen(null)}>
               {item.children.map((child) => (
-                <Link key={child.href} to={child.href} className="nav-dropdown__item" onClick={() => setMobileMenuOpen(false)}>
+                <Link
+                  key={child.href}
+                  to={child.href}
+                  className="nav-dropdown__item"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   {child.label}
                 </Link>
               ))}
@@ -93,7 +98,12 @@ export function PublicLayout({ children }: PublicLayoutProps) {
           {item.label}
         </button>
       ) : (
-        <Link key={item.href} to={item.href} className="public-nav__link" onClick={() => setMobileMenuOpen(false)}>
+        <Link
+          key={item.href}
+          to={item.href}
+          className="public-nav__link"
+          onClick={() => setMobileMenuOpen(false)}
+        >
           {item.label}
         </Link>
       ),
@@ -104,8 +114,11 @@ export function PublicLayout({ children }: PublicLayoutProps) {
       <header className="public-header">
         <div className="public-top" aria-label="Site navigation">
           <Link to="/" className="brand brand--compact" onClick={() => setMobileMenuOpen(false)}>
-            <img src={logo} alt="Science Journal" className="brand-logo brand-logo--plain" />
-            <span className="brand-wordmark">Известия университета «Туран-Астана»</span>
+            <img src={logo} alt="Логотип журнала" className="brand-logo brand-logo--plain" />
+            <span className="brand-wordmark">
+              <span className="brand-wordmark__title">Известия университета</span>
+              <span className="brand-wordmark__accent">«Туран-Астана»</span>
+            </span>
           </Link>
           <nav className="public-nav public-nav--top">{renderNav(topNav)}</nav>
           <div className="public-actions">
@@ -121,7 +134,11 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 </button>
               ))}
             </div>
-            <Link to="/cabinet" className="button button--ghost public-actions__desktop" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              to="/cabinet"
+              className="button button--ghost public-actions__desktop"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Кабинет
             </Link>
             <button
@@ -129,9 +146,9 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               type="button"
               onClick={() => setMobileMenuOpen((v) => !v)}
               aria-expanded={mobileMenuOpen}
-              aria-label="Открыть меню"
+              aria-label="Переключить меню"
             >
-              {mobileMenuOpen ? '✕' : '☰'}
+              {mobileMenuOpen ? '×' : '≡'}
             </button>
           </div>
         </div>
@@ -142,10 +159,18 @@ export function PublicLayout({ children }: PublicLayoutProps) {
           <nav className="public-nav public-nav--mobile">{renderNav(topNav)}</nav>
           <nav className="public-nav public-nav--mobile">{renderNav(dropdownNav)}</nav>
           <div className="public-menu__actions">
-            <button type="button" className="button button--primary" onClick={() => setIsSearchOpen(true)}>
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={() => setIsSearchOpen(true)}
+            >
               Поиск
             </button>
-            <Link to="/cabinet" className="button button--ghost" onClick={() => setMobileMenuOpen(false)}>
+            <Link
+              to="/cabinet"
+              className="button button--ghost"
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Кабинет
             </Link>
           </div>
@@ -158,7 +183,11 @@ export function PublicLayout({ children }: PublicLayoutProps) {
           <div className="search-modal" onClick={(e) => e.stopPropagation()}>
             <div className="search-modal__header">
               <h3>Поиск</h3>
-              <button className="search-modal__close" onClick={() => setIsSearchOpen(false)} aria-label="Закрыть поиск">
+              <button
+                className="search-modal__close"
+                onClick={() => setIsSearchOpen(false)}
+                aria-label="Закрыть поиск"
+              >
                 ×
               </button>
             </div>
@@ -171,16 +200,20 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 autoFocus
               />
               <div className="search-modal__hints">
-                <span className="pill">Пример</span>
-                <span className="pill">Популярные запросы</span>
+                <span className="pill">Поиск по архиву</span>
+                <span className="pill">Автор, ключевые слова, том</span>
               </div>
             </div>
             <div className="search-modal__footer">
               <button className="button button--ghost" onClick={() => setIsSearchOpen(false)}>
                 Отмена
               </button>
-              <Link to="/search" className="button button--primary" onClick={() => setIsSearchOpen(false)}>
-                Искать
+              <Link
+                to="/search"
+                className="button button--primary"
+                onClick={() => setIsSearchOpen(false)}
+              >
+                Расширенный поиск
               </Link>
             </div>
           </div>
@@ -190,7 +223,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
       <footer className="app-footer">
         <div className="footer__brand">
           <div className="brand-mark">
-            <img src={logo} alt="Science Journal" className="brand-logo" />
+            <img src={logo} alt="Логотип журнала" className="brand-logo" />
           </div>
           <div>
             <div className="brand-title">Известия университета «Туран-Астана»</div>
@@ -199,7 +232,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
         </div>
         <div className="footer__meta">
           <span className="meta-label">c 2025 Science Journal</span>
-          <span className="meta-label">Туран-Астана</span>
+          <span className="meta-label">Все права защищены</span>
         </div>
       </footer>
     </div>

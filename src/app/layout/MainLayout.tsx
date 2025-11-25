@@ -26,21 +26,21 @@ const roleNav: Record<
 > = {
   author: [
     {
-      title: 'Подача и договоры',
+      title: 'Работа с рукописями',
       items: [
-        { label: 'Мои статьи', path: '/cabinet/submissions' },
-        { label: 'Подача статьи', path: '/cabinet/submission' },
-        { label: 'Договор', path: '/authors/contract' },
+        { label: 'Мои рукописи', path: '/cabinet/submissions' },
+        { label: 'Новая рукопись', path: '/cabinet/submission' },
+        { label: 'Авторский договор', path: '/authors/contract' },
         { label: 'Профиль', path: '/cabinet/profile' },
       ],
     },
   ],
   editor: [
     {
-      title: 'Рабочая панель',
+      title: 'Редакционный поток',
       items: [
-        { label: 'Все статьи', path: '/cabinet/editorial' },
-        { label: 'Назначения рецензентам', path: '/cabinet/reviews' },
+        { label: 'Редакционный портфель', path: '/cabinet/editorial' },
+        { label: 'Рецензии и отзывы', path: '/cabinet/reviews' },
         { label: 'Профиль', path: '/cabinet/profile' },
       ],
     },
@@ -49,17 +49,17 @@ const roleNav: Record<
     {
       title: 'Рецензирование',
       items: [
-        { label: 'Назначенные статьи', path: '/cabinet/reviews' },
+        { label: 'Мои рецензии', path: '/cabinet/reviews' },
         { label: 'Профиль', path: '/cabinet/profile' },
       ],
     },
   ],
   designer: [
     {
-      title: 'Верстка',
+      title: 'Верстка номеров',
       items: [
-        { label: 'Очередь верстки', path: '/cabinet/layout' },
-        { label: 'Готовые к выпуску', tag: 'скоро' },
+        { label: 'Макеты и номера', path: '/cabinet/layout' },
+        { label: 'Задачи (скоро)', tag: 'скоро' },
         { label: 'Профиль', path: '/cabinet/profile' },
       ],
     },
@@ -105,10 +105,10 @@ export function MainLayout({ children }: MainLayoutProps) {
         <div className="sidebar__brand">
           <Link to="/" className="brand--compact">
             <div className="brand-mark">
-              <img src={logo} alt="Логотип" className="brand-logo brand-logo--plain" />
+              <img src={logo} alt="Логотип журнала" className="brand-logo brand-logo--plain" />
             </div>
             <div>
-              <div className="brand-title">известия университета "Туран-Астана"</div>
+              <div className="brand-title">Известия университета «Туран-Астана»</div>
             </div>
           </Link>
         </div>
@@ -168,7 +168,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             type="button"
             onClick={() => {
               api.logout()
-              navigate("/login")
+              navigate('/login')
             }}
           >
             Logout
@@ -180,7 +180,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         <footer className="app-footer">
           <div className="footer__brand">
             <div className="brand-mark">
-              <img src={logo} alt="Логотип" className="brand-logo" />
+              <img src={logo} alt="Логотип журнала" className="brand-logo" />
             </div>
           </div>
           <div className="footer__meta">

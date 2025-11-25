@@ -1,47 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 
 const articleTypes = ['Оригинальная статья', 'Обзор', 'Короткое сообщение', 'Методическая статья']
-const mapArticleTypeToApi: Record<string, 'original' | 'review'> = {
-  'Оригинальная статья': 'original',
-  'Обзорная статья': 'review',
-}
-
 type ApiKeyword = { id?: number; title_ru: string; title_kz: string; title_en: string }
 type Keyword = { id?: number; ru: string; kz: string; en: string }
 type Lang = 'ru' | 'kz' | 'en'
-
-type AuthorApi = {
-  id: number
-  email: string
-  prefix?: string | null
-  first_name: string
-  patronymic?: string | null
-  last_name: string
-  phone?: string | null
-  address?: string | null
-  country: string
-  affiliation1: string
-  affiliation2?: string | null
-  affiliation3?: string | null
-  is_corresponding: boolean
-  orcid?: string | null
-  scopus_author_id?: string | null
-  researcher_id?: string | null
-}
-
-type FileOut = {
-  id: string
-  original_name: string
-  content_type: string
-  size_bytes: number
-  url: string
-  created_at: string
-}
-
 type AuthorForm = {
-  id?: number
   email: string
   prefix: string
   firstName: string
@@ -61,7 +26,6 @@ type AuthorForm = {
 
 export function AuthorsSubmissionPage() {
   const [keywords, setKeywords] = useState<Keyword[]>([])
-  const [selectedKeywords, setSelectedKeywords] = useState<Keyword[]>([])
   const [keywordInput, setKeywordInput] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [newKeyword, setNewKeyword] = useState<Keyword>({ ru: '', kz: '', en: '' })
@@ -69,15 +33,7 @@ export function AuthorsSubmissionPage() {
   const [titles, setTitles] = useState<Record<Lang, string>>({ ru: '', kz: '', en: '' })
   const [abstracts, setAbstracts] = useState<Record<Lang, string>>({ ru: '', kz: '', en: '' })
   const [authors, setAuthors] = useState<Record<Lang, string>>({ ru: '', kz: '', en: '' })
-  const [articleType, setArticleType] = useState('')
-  const [comments, setComments] = useState('')
-  void setComments
-  const [confirmCopyright, setConfirmCopyright] = useState(false)
-  const [confirmOriginality, setConfirmOriginality] = useState(false)
-  const [confirmConsent, setConfirmConsent] = useState(false)
   const [authorModalOpen, setAuthorModalOpen] = useState(false)
-  const [allAuthors, setAllAuthors] = useState<AuthorApi[]>([])
-  const [authorQuery, setAuthorQuery] = useState('')
   const [authorForm, setAuthorForm] = useState<AuthorForm>({
     email: '',
     prefix: '',
@@ -96,7 +52,6 @@ export function AuthorsSubmissionPage() {
     researcherId: '',
   })
   const [authorList, setAuthorList] = useState<AuthorForm[]>([])
-  const navigate = useNavigate()
 
   useEffect(() => {
     let isMounted = true
@@ -122,67 +77,16 @@ export function AuthorsSubmissionPage() {
     }
   }, [])
 
-  useEffect(() => {
-    let isMounted = true
-    const loadAuthors = async () => {
-      try {
-        const data = await api.get<AuthorApi[]>('/articles/authors')
-        if (!isMounted || !Array.isArray(data)) return
-        setAllAuthors(data)
-      } catch (error) {
-        console.error('Failed to load authors', error)
-      }
-    }
-    loadAuthors()
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
   const matches = useMemo(
-    () => {
-      const query = keywordInput.trim().toLowerCase()
-      if (!query) return []
-      return keywords.filter((kw) => {
-        const title = kw.ru.toLowerCase()
-        const isSelected = selectedKeywords.some(
-          (selected) => (selected.id ?? selected.ru) === (kw.id ?? kw.ru),
-        )
-        return !isSelected && title.includes(query)
-      })
-    },
-    [keywords, keywordInput, selectedKeywords],
+    () =>
+      keywordInput.trim().length === 0
+        ? []
+        : keywords.filter((kw) => kw.ru.toLowerCase().includes(keywordInput.trim().toLowerCase())),
+    [keywords, keywordInput],
   )
 
-  const handleAddKeyword = (keyword: Keyword) => {
-    const exists = selectedKeywords.some(
-      (selected) => (selected.id ?? selected.ru) === (keyword.id ?? keyword.ru),
-    )
-    if (exists) return
-    setSelectedKeywords((prev) => [...prev, keyword])
-    setKeywordInput('')
-  }
-
-  const authorMatches = useMemo(
-    () => {
-      const query = authorQuery.trim().toLowerCase()
-      if (!query) return []
-      return allAuthors.filter((a) => {
-        const fullName = [a.prefix, a.first_name, a.patronymic, a.last_name].filter(Boolean).join(' ').toLowerCase()
-        return fullName.includes(query) || a.email.toLowerCase().includes(query)
-      })
-    },
-    [allAuthors, authorQuery],
-  )
-
-  const handleAttachExistingAuthor = (apiAuthor: AuthorApi) => {
-    const mapped = mapApiAuthorToForm(apiAuthor)
-    setAuthorList((prev) => {
-      if (prev.some((a) => a.email === mapped.email)) return prev
-      return [...prev, mapped]
-    })
-    setAuthorQuery('')
-  }
+  const keywordExists = (kw: string) =>
+    keywords.some((item) => item.ru.toLowerCase() === kw.trim().toLowerCase())
 
   const handleSaveKeyword = async () => {
     if (!newKeyword.ru.trim()) return
@@ -226,57 +130,11 @@ export function AuthorsSubmissionPage() {
       researcherId: '',
     })
 
-  const mapApiAuthorToForm = (a: AuthorApi): AuthorForm => ({
-    id: a.id,
-    email: a.email,
-    prefix: a.prefix ?? '',
-    firstName: a.first_name,
-    middleName: a.patronymic ?? '',
-    lastName: a.last_name,
-    phone: a.phone ?? '',
-    address: a.address ?? '',
-    country: a.country,
-    affiliation1: a.affiliation1,
-    affiliation2: a.affiliation2 ?? '',
-    affiliation3: a.affiliation3 ?? '',
-    isCorresponding: a.is_corresponding,
-    orcid: a.orcid ?? '',
-    scopusId: a.scopus_author_id ?? '',
-    researcherId: a.researcher_id ?? '',
-  })
-
-  const saveAuthor = async () => {
+  const saveAuthor = () => {
     if (!authorForm.email.trim() || !authorForm.firstName.trim() || !authorForm.lastName.trim()) return
-    try {
-      const payload = {
-        email: authorForm.email.trim(),
-        prefix: authorForm.prefix.trim() || null,
-        first_name: authorForm.firstName.trim(),
-        patronymic: authorForm.middleName.trim() || null,
-        last_name: authorForm.lastName.trim(),
-        phone: authorForm.phone.trim() || null,
-        address: authorForm.address.trim() || null,
-        country: authorForm.country.trim(),
-        affiliation1: authorForm.affiliation1.trim(),
-        affiliation2: authorForm.affiliation2.trim() || null,
-        affiliation3: authorForm.affiliation3.trim() || null,
-        is_corresponding: authorForm.isCorresponding,
-        orcid: authorForm.orcid.trim() || null,
-        scopus_author_id: authorForm.scopusId.trim() || null,
-        researcher_id: authorForm.researcherId.trim() || null,
-      }
-      const created = await api.post<AuthorApi>('/articles/authors', payload)
-      const mapped = mapApiAuthorToForm(created)
-      setAuthorList((prev) => {
-        if (prev.some((a) => a.email === mapped.email)) return prev
-        return [...prev, mapped]
-      })
-      setAllAuthors((prev) => [...prev, created])
-      resetAuthorForm()
-      setAuthorModalOpen(false)
-    } catch (error) {
-      console.error('Failed to create author', error)
-    }
+    setAuthorList((prev) => [...prev, authorForm])
+    resetAuthorForm()
+    setAuthorModalOpen(false)
   }
 
   const langLabels: Record<Lang, string> = { ru: 'Русский', kz: 'Казахский', en: 'Английский' }
@@ -296,20 +154,8 @@ export function AuthorsSubmissionPage() {
     en: 'Authors in English',
   }
 
-  const selectedKeywordsValue = useMemo(
-    () => selectedKeywords.map((kw) => kw.ru).join(', '),
-    [selectedKeywords],
-  )
-
-  const uploadFile = async (file: File): Promise<FileOut> => {
-    const formData = new FormData()
-    formData.append('upload', file)
-    return api.request<FileOut>('/files', 'POST', { body: formData })
-  }
-
   return (
     <div className="public-container">
-      {false && (
       <div className="section public-section">
         <p className="eyebrow">Подача статьи</p>
         <h1 className="hero__title">Загрузите рукопись</h1>
@@ -318,123 +164,12 @@ export function AuthorsSubmissionPage() {
           Вернуться в кабинет
         </Link>
       </div>
-      )}
 
-      <div className="section public-section" style={{ display: 'none' }}>
-        <h1 className="hero__title">Загрузите рукопись</h1>
-        <p className="subtitle">
-          Заполните данные о статье, выберите ключевые слова и прикрепите файлы.
-        </p>
-        <Link to="/cabinet/submissions" className="button button--ghost">
-          Вернуться в кабинет
-        </Link>
-      </div>
-
-        <div className="section public-section">
-          <h1 className="hero__title">Загрузите рукопись</h1>
-          <p className="subtitle">
-            Заполните данные о статье, выберите ключевые слова и прикрепите файлы.
-          </p>
-          <Link to="/cabinet/submissions" className="button button--ghost">
-            Вернуться в кабинет
-          </Link>
-          <form
-            className="auth-form"
-            onSubmit={async (e) => {
-              e.preventDefault()
-              try {
-                const form = e.currentTarget as HTMLFormElement
-                const fileInputs = Array.from(
-                  form.querySelectorAll<HTMLInputElement>('input[type="file"].file-input[data-upload-slot="article-file"]'),
-                )
-                const manuscriptFile = fileInputs[0]?.files?.[0] ?? null
-                const authorInfoFile = fileInputs[1]?.files?.[0] ?? null
-                const coverLetterFile = fileInputs[2]?.files?.[0] ?? null
-                const antiplagiarismFile = fileInputs[3]?.files?.[0] ?? null
-
-                const manuscriptFileId = manuscriptFile ? (await uploadFile(manuscriptFile)).id : null
-                const authorInfoFileId = authorInfoFile ? (await uploadFile(authorInfoFile)).id : null
-                const coverLetterFileId = coverLetterFile ? (await uploadFile(coverLetterFile)).id : null
-                const antiplagiarismFileId = antiplagiarismFile ? (await uploadFile(antiplagiarismFile)).id : null
-
-                const payload = {
-                  // соответствие контракту backend
-                  title_kz: titles.kz || null,
-                  title_en: titles.en || null,
-                  title_ru: titles.ru || null,
-
-                  abstract_kz: abstracts.kz || null,
-                  abstract_en: abstracts.en || null,
-                  abstract_ru: abstracts.ru || null,
-
-                  doi: null,
-                  status: 'draft',
-                  article_type: mapArticleTypeToApi[articleType] ?? 'original',
-
-                  // пока берём id первого автора как ответственного
-                  responsible_user_id: authorList[0]?.id ?? null,
-
-                  antiplagiarism_file_id: antiplagiarismFileId,
-                  manuscript_file_id: manuscriptFileId,
-                  author_info_file_id: authorInfoFileId,
-                  cover_letter_file_id: coverLetterFileId,
-
-                  not_published_elsewhere: true,
-                  plagiarism_free: true,
-                  authors_agree: true,
-                  generative_ai_info: null,
-
-                  authors_text: authors,
-                  keyword_ids: selectedKeywords
-                    .map((k) => k.id)
-                    .filter((id): id is number => typeof id === 'number'),
-                  author_ids: authorList
-                    .map((a) => a.id)
-                    .filter((id): id is number => typeof id === 'number'),
-                  comments: comments.trim() || null,
-                  confirmations: {
-                    copyright: confirmCopyright,
-                    originality: confirmOriginality,
-                    consent: confirmConsent,
-                  },
-                }
-                // Пример запроса на создание статьи
-                // Ожидается, что backend примет этот JSON на /articles
-                await api.post('/articles', payload)
-                navigate('/cabinet/submissions')
-                // Здесь можно добавить редирект или очистку формы
-              } catch (error) {
-                console.error('Failed to submit article', error)
-              }
-            }}
-          >
-          {false && (
-          <div className="form-field">
-            <label className="form-label">Язык формы</label>
-            <div className="lang-switch">
-              {(['ru', 'kz', 'en'] as Lang[]).map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  className={`lang-chip ${activeLang === code ? 'lang-chip--active' : ''}`}
-                  onClick={() => setActiveLang(code)}
-                >
-                  {langLabels[code]}
-                </button>
-              ))}
-            </div>
-            <p className="form-hint">
-              Выберите язык для заполнения названия, аннотации и авторов.
-            </p>
-          </div>
-          )}
+      <div className="section public-section">
+        <form className="auth-form" onSubmit={(e) => e.preventDefault()}>
           <div className="form-field">
             <label className="form-label">Выберите тип статьи</label>
-              <select
-                className="chip-select"
-                value={articleType}
-                onChange={(e) => setArticleType(e.target.value)}
-              >
+            <select className="chip-select">
               <option value="">---------</option>
               {articleTypes.map((type) => (
                 <option key={type}>{type}</option>
@@ -442,53 +177,39 @@ export function AuthorsSubmissionPage() {
             </select>
           </div>
 
-          <div className="form-field form-field--article-file">
+          <div className="form-field">
             <label className="form-label">Выберите ключевые слова</label>
             <div className="form-field">
-              {selectedKeywords.length > 0 ? (
-                <div className="pill-list">
-                  {selectedKeywords.map((kw) => (
-                    <span
-                      key={kw.id ?? kw.ru}
-                      className="status-chip status-chip--submitted"
-                    >
-                      {kw.ru}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
               <input
                 className="text-input"
                 placeholder="Введите ключевое слово"
                 value={keywordInput}
                 onChange={(e) => setKeywordInput(e.target.value)}
               />
-              <input type="hidden" name="keywords" value={selectedKeywordsValue} />
             </div>
             {keywordInput.trim() ? (
               <div className="pill-list">
-    {matches.length > 0 ? (
-      matches.map((kw) => (
-        <button
-          key={kw.id ?? kw.ru}
-          type="button"
-          className="status-chip status-chip--submitted"
-          onClick={() => handleAddKeyword(kw)}
-        >
-          {kw.ru}
-        </button>
-      ))
-    ) : (
-      <span className="table__empty">Совпадений не найдено.</span>
-    )}
-  </div>
-) : null}
-
-            {keywordInput.trim() && matches.length === 0 ? (
+                {matches.length > 0 ? (
+                  matches.map((kw) => (
+                    <span key={kw.id ?? kw.ru} className="status-chip status-chip--submitted">
+                      {kw.ru}
+                    </span>
+                  ))
+                ) : (
+                  <span className="table__empty">Совпадений не найдено.</span>
+                )}
+              </div>
+            ) : null}
+            {!keywordExists(keywordInput) && keywordInput.trim() ? (
               <button type="button" className="button button--ghost" onClick={() => setModalOpen(true)}>
                 Добавить новое ключевое слово
               </button>
             ) : null}
+          </div>
+
+          <div className="form-field">
+            <label className="form-label">Создайте новые ключевые слова</label>
+            <input className="text-input" placeholder="Новые ключевые слова через запятую" />
           </div>
 
           <div className="form-field">
@@ -541,30 +262,24 @@ export function AuthorsSubmissionPage() {
 
           <div className="form-field">
             <label className="form-label">Загрузить статью</label>
-            <input
-              type="file"
-              className="file-input"
-              data-upload-slot="article-file"
-            />
+            <input type="file" />
           </div>
           <div className="form-field">
             <label className="form-label">Загрузить сведения об антиплагиате</label>
-            <input type="file" className="file-input" data-upload-slot="article-file" />
+            <input type="file" />
           </div>
 
-          {false && (
           <div className="form-field">
             <label className="form-label">Рукопись (*.doc, *.docx)</label>
-            <input type="file" className="file-input" data-upload-slot="article-file" />
+            <input type="file" />
           </div>
-          )}
           <div className="form-field">
             <label className="form-label">Файл со сведениями об авторах (*.doc, *.docx)</label>
-            <input type="file" className="file-input" data-upload-slot="article-file" />
+            <input type="file" />
           </div>
           <div className="form-field">
             <label className="form-label">Сопроводительное письмо (*.pdf)</label>
-            <input type="file" className="file-input" data-upload-slot="article-file" />
+            <input type="file" />
           </div>
 
           <div className="form-field">
@@ -572,30 +287,15 @@ export function AuthorsSubmissionPage() {
             <textarea className="text-input" rows={3} />
           </div>
 
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={confirmCopyright}
-                onChange={(e) => setConfirmCopyright(e.target.checked)}
-              />{' '}
-              Статья ранее не публиковалась и не рассматривается другим журналом
-            </label>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={confirmOriginality}
-                onChange={(e) => setConfirmOriginality(e.target.checked)}
-              />{' '}
-              В статье отсутствует плагиат
-            </label>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={confirmConsent}
-                onChange={(e) => setConfirmConsent(e.target.checked)}
-              />{' '}
-              Все авторы подтверждают согласие с поданной версией
-            </label>
+          <label className="checkbox">
+            <input type="checkbox" /> Статья ранее не публиковалась и не рассматривается другим журналом
+          </label>
+          <label className="checkbox">
+            <input type="checkbox" /> В статье отсутствует плагиат
+          </label>
+          <label className="checkbox">
+            <input type="checkbox" /> Все авторы подтверждают согласие с поданной версией
+          </label>
 
           <button className="button button--primary" type="submit">
             Отправить статью
@@ -612,35 +312,8 @@ export function AuthorsSubmissionPage() {
           <button className="button button--primary button--compact" type="button" onClick={() => setAuthorModalOpen(true)}>
             Добавить автора
           </button>
-          </div>
-          <div className="form-field">
-            <label className="form-label">Поиск автора в базе</label>
-            <input
-              className="text-input"
-              value={authorQuery}
-              onChange={(e) => setAuthorQuery(e.target.value)}
-              placeholder="Начните вводить ФИО или email автора"
-            />
-            {authorQuery.trim() ? (
-              <div className="pill-list">
-                {authorMatches.length > 0 ? (
-                  authorMatches.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      className="status-chip status-chip--submitted"
-                      onClick={() => handleAttachExistingAuthor(a)}
-                    >
-                      {[a.prefix, a.first_name, a.patronymic, a.last_name].filter(Boolean).join(' ')} ({a.email})
-                    </button>
-                  ))
-                ) : (
-                  <span className="table__empty">Авторы не найдены.</span>
-                )}
-              </div>
-            ) : null}
-          </div>
-          {authorList.length === 0 ? (
+        </div>
+        {authorList.length === 0 ? (
           <div className="table__empty">Авторы пока не добавлены.</div>
         ) : (
           <div className="table">
