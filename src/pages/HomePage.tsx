@@ -6,10 +6,10 @@ export function HomePage() {
   const isAuthed = Boolean(tokens?.accessToken)
 
   return (
-    <div className="public-container">
+    <div className="public-container home-page">
       <section className="hero">
         <div>
-          <p className="eyebrow">университетский научный журнал</p>
+          <p className="eyebrow">Известия университета «Туран-Астана»</p>
           <h1 className="hero__title">Вестник Туран-Астана</h1>
           <p className="subtitle hero__subtitle">
             Рецензируемое издание Университета «Туран-Астана», публикующее результаты оригинальных исследований в

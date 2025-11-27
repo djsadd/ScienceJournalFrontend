@@ -55,6 +55,9 @@ export function PublicLayout({ children }: PublicLayoutProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [lang, setLang] = useState<'KZ' | 'RU' | 'EN'>('RU')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+
+  const isDark = theme === 'dark'
 
   const handleOpen = (href: string | null) => setOpenDropdown(href)
 
@@ -110,18 +113,29 @@ export function PublicLayout({ children }: PublicLayoutProps) {
     )
 
   return (
-    <div className={`public-shell ${mobileMenuOpen ? 'public-shell--menu-open' : ''}`}>
+    <div
+      className={`public-shell ${mobileMenuOpen ? 'public-shell--menu-open' : ''} ${
+        isDark ? 'theme-dark' : 'theme-light'
+      }`}
+    >
       <header className="public-header">
         <div className="public-top" aria-label="Site navigation">
           <Link to="/" className="brand brand--compact" onClick={() => setMobileMenuOpen(false)}>
             <img src={logo} alt="Логотип журнала" className="brand-logo brand-logo--plain" />
-            <span className="brand-wordmark">
-              <span className="brand-wordmark__title">Известия университета</span>
-              <span className="brand-wordmark__accent">«Туран-Астана»</span>
-            </span>
           </Link>
           <nav className="public-nav public-nav--top">{renderNav(topNav)}</nav>
           <div className="public-actions">
+            <button
+              type="button"
+              className="theme-toggle theme-toggle--header"
+              onClick={() => setTheme(isDark ? 'light' : 'dark')}
+              aria-label={isDark ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}
+            >
+              <span className="theme-toggle__icon" aria-hidden="true">
+                {isDark ? '🌙' : '☀️'}
+              </span>
+              <span className="theme-toggle__label">{isDark ? 'Тёмная' : 'Светлая'}</span>
+            </button>
             <div className="lang-switch">
               {(['KZ', 'RU', 'EN'] as const).map((code) => (
                 <button

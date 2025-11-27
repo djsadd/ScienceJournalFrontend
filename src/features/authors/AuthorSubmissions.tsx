@@ -1,11 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Article, User } from '../../shared/types'
 import { Badge } from '../../shared/components/Badge'
+import { api } from '../../api/client'
 
 interface AuthorSubmissionsProps {
   articles: Article[]
   users: User[]
+}
+
+interface WithdrawResponse {
+  id: number
+  status: string
+  message: string
 }
 
 const getActionLabel = (status: Article['status']) => {
@@ -25,30 +32,59 @@ export function AuthorSubmissions({ articles, users }: AuthorSubmissionsProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | Article['status']>('all')
   const [yearFilter, setYearFilter] = useState<'all' | string>('all')
   const [query, setQuery] = useState('')
+  const [lang, setLang] = useState<'ru' | 'en' | 'kz'>('ru')
+  const [apiArticles, setApiArticles] = useState<Article[]>([])
+  const [revokeId, setRevokeId] = useState<number | null>(null)
+  const [revokeMessage, setRevokeMessage] = useState<string | null>(null)
+  const [revokeLoading, setRevokeLoading] = useState(false)
+
+  useEffect(() => {
+    api
+      .get<any[]>('/articles/my')
+      .then((data) => {
+        const mapped = data.map((item) => ({
+          id: item.id,
+          title: item.title_ru ?? item.title_en ?? item.title_kz ?? '',
+          status: item.status as Article['status'],
+          submittedAt: item.created_at,
+          editorId: undefined,
+        })) as Article[]
+
+        setApiArticles(mapped)
+      })
+      .catch((error) => {
+        console.error('Ошибка при загрузке /articles/my', error)
+      })
+  }, [])
+
+  const allArticles = useMemo(
+    () => [...articles, ...apiArticles],
+    [articles, apiArticles],
+  )
 
   const years = useMemo(
     () =>
       Array.from(
         new Set(
-          articles
+          allArticles
             .map((a) => new Date(a.submittedAt).getFullYear())
             .filter((year) => !Number.isNaN(year)),
         ),
       )
         .sort((a, b) => b - a)
         .map(String),
-    [articles],
+    [allArticles],
   )
 
   const filtered = useMemo(
     () =>
-      articles.filter((article) => {
+      allArticles.filter((article) => {
         const matchesStatus = statusFilter === 'all' || article.status === statusFilter
         const matchesYear = yearFilter === 'all' || new Date(article.submittedAt).getFullYear().toString() === yearFilter
         const matchesQuery = article.title.toLowerCase().includes(query.trim().toLowerCase())
         return matchesStatus && matchesYear && matchesQuery
       }),
-    [articles, statusFilter, yearFilter, query],
+    [allArticles, statusFilter, yearFilter, query],
   )
 
   return (
@@ -67,6 +103,32 @@ export function AuthorSubmissions({ articles, users }: AuthorSubmissionsProps) {
       <section className="section">
         <div className="panel">
           <div className="filters">
+            <div className="filter-group">
+              <label className="filter-label">Язык</label>
+              <div className="pill-list">
+                <button
+                  type="button"
+                  className={`chip-select ${lang === 'ru' ? 'chip-select--active' : ''}`}
+                  onClick={() => setLang('ru')}
+                >
+                  RU
+                </button>
+                <button
+                  type="button"
+                  className={`chip-select ${lang === 'en' ? 'chip-select--active' : ''}`}
+                  onClick={() => setLang('en')}
+                >
+                  EN
+                </button>
+                <button
+                  type="button"
+                  className={`chip-select ${lang === 'kz' ? 'chip-select--active' : ''}`}
+                  onClick={() => setLang('kz')}
+                >
+                  KZ
+                </button>
+              </div>
+            </div>
             <div className="filter-group">
               <label className="filter-label">Статус</label>
               <select
@@ -134,9 +196,23 @@ export function AuthorSubmissions({ articles, users }: AuthorSubmissionsProps) {
                     {new Date(article.submittedAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
                   </div>
                   <div className="table__cell">
-                    <Link className="button button--ghost button--compact" to={`/cabinet/articles/${article.id}`}>
-                      {getActionLabel(article.status)}
-                    </Link>
+                    <div className="pill-list">
+                      <Link
+                        className="button button--ghost button--compact"
+                        to={`/cabinet/my-articles/${article.id}?lang=${lang}`}
+                      >
+                        {getActionLabel(article.status)}
+                      </Link>
+                      {article.status === 'submitted' && (
+                        <button
+                          type="button"
+                          className="button button--danger button--compact"
+                          onClick={() => setRevokeId(Number(article.id))}
+                        >
+                          Отозвать
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -145,6 +221,67 @@ export function AuthorSubmissions({ articles, users }: AuthorSubmissionsProps) {
           </div>
         </div>
       </section>
+      {revokeId !== null && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setRevokeId(null)}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header">
+              <p className="eyebrow">Подтверждение действия</p>
+              <h3 className="panel-title">Отозвать статью?</h3>
+            </div>
+            <div className="modal__body">
+              <p className="subtitle">
+                Вы уверены, что хотите отозвать выбранную статью? После отзыва редакция приостановит рассмотрение
+                рукописи.
+              </p>
+              {revokeMessage && <div className="alert alert--info">{revokeMessage}</div>}
+            </div>
+            <div className="modal__footer">
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={() => setRevokeId(null)}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="button button--danger"
+                disabled={revokeLoading}
+                onClick={async () => {
+                  if (revokeId == null) return
+                  try {
+                    setRevokeLoading(true)
+                    setRevokeMessage(null)
+                    const res = await api.post<WithdrawResponse>(`/articles/${revokeId}/withdraw`)
+                    setRevokeMessage(res.message || 'Статья была успешно отозвана.')
+                    // обновим статус в локальном списке apiArticles
+                    setApiArticles((prev) =>
+                      prev.map((a) =>
+                        Number(a.id) === res.id
+                          ? { ...a, status: res.status as Article['status'] }
+                          : a,
+                      ),
+                    )
+                    setTimeout(() => {
+                      setRevokeId(null)
+                    }, 1500)
+                  } catch (e) {
+                    console.error('Ошибка при отзыве статьи', e)
+                    setRevokeMessage('Не удалось отозвать статью. Попробуйте позже.')
+                  } finally {
+                    setRevokeLoading(false)
+                  }
+                }}
+              >
+                {revokeLoading ? 'Отзываем…' : 'Отозвать статью'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

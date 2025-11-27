@@ -22,6 +22,7 @@ import { AuthorsContractPage } from './pages/AuthorsContractPage'
 import { AuthorsSubmissionPage } from './pages/AuthorsSubmissionPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { ArticleDetailsPage } from './pages/ArticleDetailsPage'
+import { MyArticleDetailsPage } from './pages/MyArticleDetailsPage'
 import { ReviewFormPage } from './pages/ReviewFormPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -179,6 +180,16 @@ function App() {
           <RequireAuth>
             <MainLayout>
               <AuthorSubmissions articles={articles} users={users} />
+            </MainLayout>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/cabinet/my-articles/:id"
+        element={
+          <RequireAuth>
+            <MainLayout>
+              <MyArticleDetailsPage />
             </MainLayout>
           </RequireAuth>
         }
