@@ -39,8 +39,7 @@ const roleNav: Record<
     {
       title: 'Редакционный поток',
       items: [
-        { label: 'Редакционный портфель', path: '/cabinet/editorial' },
-        { label: 'Второй редакционный портфель', path: '/cabinet/editorial2' },
+        { label: 'Редакционный портфель', path: '/cabinet/editorial2' },
         { label: 'Рецензии и отзывы', path: '/cabinet/reviews' },
         { label: 'Профиль', path: '/cabinet/profile' },
       ],

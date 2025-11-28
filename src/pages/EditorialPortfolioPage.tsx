@@ -99,7 +99,7 @@ export default function EditorialPortfolioPage() {
       <section className="section-header">
         <div>
           <p className="eyebrow">Редактор</p>
-          <h1 className="page-title">Второй редакционный портфель</h1>
+          <h1 className="page-title">Редакционный портфель</h1>
           <p className="subtitle">Секция с реальными данными из API.</p>
         </div>
       </section>

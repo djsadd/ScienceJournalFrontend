@@ -99,7 +99,7 @@ export default function EditorArticleDetailPage() {
     last_name?: string | null
     institution?: string | null
   }
-  type ReviewStatus = 'pending' | 'in_progress' | 'completed'
+  type ReviewStatus = 'pending' | 'in_progress' | 'completed' | 'resubmission' | string
   type ArticleReviewerAssignment = {
     id: number
     reviewer_id: number
@@ -145,6 +145,10 @@ export default function EditorArticleDetailPage() {
   const [reviewLoading, setReviewLoading] = useState(false)
   const [reviewError, setReviewError] = useState<string | null>(null)
   const [reviewDetails, setReviewDetails] = useState<ReviewOut | null>(null)
+  const [resubDeadlineLocal, setResubDeadlineLocal] = useState('')
+  const [resubmitting, setResubmitting] = useState(false)
+  const [resubError, setResubError] = useState<string | null>(null)
+  const [resubSuccess, setResubSuccess] = useState<string | null>(null)
 
   const parseDeadlineToISO = (input: string): string | null => {
     const trimmed = input.trim()
@@ -217,16 +221,28 @@ export default function EditorArticleDetailPage() {
     fetchArticleReviewers(id)
   }, [id])
 
+  // Auto-open review modal if URL has ?review_id=123
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const rid = params.get('review_id')
+    if (rid && /^\d+$/.test(rid)) {
+      try { console.log('[EditorDetail] auto-open review_id from URL', rid) } catch {}
+      openReviewModal(Number(rid))
+    }
+  }, [id])
+
   const openReviewModal = async (reviewId: number) => {
     setIsReviewModalOpen(true)
     setReviewLoading(true)
     setReviewError(null)
     setReviewDetails(null)
     try {
+      try { console.log(`[ReviewDetails] request GET /reviews/${reviewId}`) } catch {}
       const details = await api.getReviewById<ReviewOut>(reviewId)
-      try { console.log('[ReviewDetails] fetched', details) } catch {}
+      try { console.log(`GET /reviews/${reviewId} response:`, details) } catch {}
       setReviewDetails(details)
     } catch (e: any) {
+      try { console.error(`GET /reviews/${reviewId} error:`, e) } catch {}
       const message = e?.bodyJson?.detail || e?.message || 'Не удалось загрузить рецензию'
       setReviewError(String(message))
     } finally {
@@ -234,15 +250,20 @@ export default function EditorArticleDetailPage() {
     }
   }
 
+  const getReviewIdFromAssignment = (r: ArticleReviewerAssignment): number | null => {
+    const anyR: any = r as any
+    const candidates = [anyR.id, anyR.review_id, anyR.reviewId, anyR.assignment_id]
+    const found = candidates.find((v) => typeof v === 'number' && Number.isFinite(v))
+    return (found as number) ?? null
+  }
+
   const renderStatusBadge = (status?: ReviewStatus) => {
-    const s = status || 'pending'
-    const map: Record<ReviewStatus, { label: string; cls: string }> = {
-      pending: { label: 'Ожидает', cls: 'badge badge--muted' },
-      in_progress: { label: 'В работе', cls: 'badge badge--warn' },
-      completed: { label: 'Готово', cls: 'badge badge--success' },
-    }
-    const meta = map[s]
-    return <span className={meta.cls}>{meta.label}</span>
+    const s = (status as string) || 'pending'
+    if (s === 'pending') return <span className="badge badge--muted">Ожидает</span>
+    if (s === 'in_progress') return <span className="badge badge--warn">В работе</span>
+    if (s === 'completed') return <span className="badge badge--success">Готово</span>
+    if (s === 'resubmission') return <span className="badge">Повторная рецензия</span>
+    return <span className="badge badge--ghost">{s}</span>
   }
 
   return (
@@ -379,34 +400,36 @@ export default function EditorArticleDetailPage() {
                   <span>Email</span>
                   <span>Дедлайн</span>
                   <span>Статус</span>
-                  <span>Действия</span>
                 </div>
                 <div className="table__body">
                   {reviewList.map((r) => {
+                    const rid = getReviewIdFromAssignment(r)
                     const fullName = r.reviewer?.full_name || `ID: ${r.reviewer_id}`
                     const email = r.reviewer?.email || '—'
                     const deadline = r.deadline ? new Date(r.deadline).toLocaleDateString() : '—'
                     return (
                       <div className="table__row table__row--align" key={`${r.reviewer_id}-${r.deadline ?? ''}`}>
                         <div className="table__cell">
-                          <div className="table__title">{fullName}</div>
-                          <div className="table__meta">ID: {r.reviewer?.id ?? r.reviewer_id}</div>
+                          <div className="table__title">
+                            {rid ? (
+                              <a
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  try { console.log('[ReviewDetails] open from reviewer name', { reviewer_id: r.reviewer_id, review_id: rid, status: r.status }) } catch {}
+                                  openReviewModal(rid)
+                                }}
+                                style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                              >{fullName}</a>
+                            ) : (
+                              <span style={{ opacity: 0.7 }}>{fullName}</span>
+                            )}
+                          </div>
+                          <div className="table__meta">ID: {r.reviewer?.id ?? r.reviewer_id}{rid ? ` • ReviewID: ${rid}` : ''}</div>
                         </div>
                         <div className="table__cell">{email}</div>
                         <div className="table__cell">{deadline}</div>
                         <div className="table__cell">{renderStatusBadge(r.status)}</div>
-                        <div className="table__cell table__cell--actions">
-                          <div className="actions">
-                            {r.status === 'completed' && r.id ? (
-                              <button
-                                className="button button--primary button--compact"
-                                onClick={() => openReviewModal(r.id)}
-                              >Просмотреть</button>
-                            ) : (
-                              <button className="button button--ghost button--compact" disabled>Посмотреть</button>
-                            )}
-                          </div>
-                        </div>
                       </div>
                     )
                   })}
@@ -563,10 +586,50 @@ export default function EditorArticleDetailPage() {
                   <div style={{ gridColumn: '1 / -1' }}><strong>Соответствие требованиям:</strong><br/>{reviewDetails.editorial_compliance || '—'}</div>
                   <div><strong>Создано:</strong> {reviewDetails.created_at ? new Date(reviewDetails.created_at).toLocaleString() : '—'}</div>
                   <div><strong>Обновлено:</strong> {reviewDetails.updated_at ? new Date(reviewDetails.updated_at).toLocaleString() : '—'}</div>
+                  <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+                      <label style={{ fontWeight: 600 }}>Новый дедлайн (опционально):</label>
+                      <input
+                        className="text-input"
+                        type="datetime-local"
+                        value={resubDeadlineLocal}
+                        onChange={(e) => setResubDeadlineLocal(e.target.value)}
+                        style={{ maxWidth: '260px' }}
+                      />
+                      <span className="form-hint">Если не указать — статус всё равно станет resubmission</span>
+                    </div>
+                    {resubError && <div className="alert error" style={{ marginTop: '0.5rem' }}>Ошибка: {resubError}</div>}
+                    {resubSuccess && <div className="alert" style={{ marginTop: '0.5rem' }}>{resubSuccess}</div>}
+                  </div>
                 </div>
               )}
             </div>
             <div className="modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              {reviewDetails && (
+                <button
+                  className="button button--warn"
+                  disabled={resubmitting}
+                  onClick={async () => {
+                    if (!reviewDetails?.id) return
+                    setResubmitting(true)
+                    setResubError(null)
+                    setResubSuccess(null)
+                    try {
+                      const deadlineIso = resubDeadlineLocal ? new Date(resubDeadlineLocal).toISOString() : undefined
+                      const updated = await api.requestReviewResubmission<typeof reviewDetails>(reviewDetails.id, deadlineIso)
+                      setReviewDetails(updated as any)
+                      setResubSuccess('Статус обновлён: повторная рецензия запрошена')
+                      // refresh list to reflect deadline/status changes
+                      if (id) await fetchArticleReviewers(id)
+                    } catch (e: any) {
+                      const message = e?.bodyJson?.detail || e?.message || 'Не удалось запросить повторную рецензию'
+                      setResubError(String(message))
+                    } finally {
+                      setResubmitting(false)
+                    }
+                  }}
+                >Повторная рецензия</button>
+              )}
               <button className="button button--primary" onClick={() => setIsReviewModalOpen(false)}>Закрыть</button>
             </div>
           </div>

@@ -98,6 +98,9 @@ const doRefresh = async (): Promise<AuthTokens | null> => {
 const request = async <T>(path: string, method: HttpMethod = 'GET', options: RequestOptions = {}): Promise<T> => {
   const { params, json, headers, ...rest } = options
   const url = buildUrl(path, params)
+  const started = Date.now()
+
+  try { console.log('[API] =>', method, url, json ? { body: json } : undefined) } catch {}
 
   const makeRequest = async () => {
     const isFormData = rest.body instanceof FormData
@@ -121,6 +124,7 @@ const request = async <T>(path: string, method: HttpMethod = 'GET', options: Req
   if (response.status === 401) {
     const refreshed = await doRefresh()
     if (refreshed) {
+      try { console.log('[API] token refreshed, retrying', method, url) } catch {}
       response = await makeRequest()
     }
   }
@@ -133,12 +137,18 @@ const request = async <T>(path: string, method: HttpMethod = 'GET', options: Req
     } catch {
       parsed = undefined
     }
+    try { console.error('[API] <=', response.status, method, url, `${Date.now()-started}ms`, parsed ?? text) } catch {}
     const message = `API error ${response.status}`
     throw new ApiError(message, { status: response.status, bodyText: text, bodyJson: parsed, url })
   }
 
-  if (response.status === 204) return undefined as T
-  return (await response.json()) as T
+  if (response.status === 204) {
+    try { console.log('[API] <=', response.status, method, url, `${Date.now()-started}ms`, '(no content)') } catch {}
+    return undefined as T
+  }
+  const data = (await response.json()) as T
+  try { console.log('[API] <=', response.status, method, url, `${Date.now()-started}ms`, data) } catch {}
+  return data
 }
 
 export const api = {
@@ -179,4 +189,12 @@ export const api = {
   getMyReviews: <T>() => request<T>('/reviews/my-reviews', 'GET'),
   getReviewDetail: <T>(reviewId: number | string) => request<T>(`/reviews/${reviewId}/detail`, 'GET'),
   updateReview: <T>(reviewId: number | string, body: unknown) => request<T>(`/reviews/${reviewId}`, 'PATCH', { json: body }),
+  // Request resubmission for a review (editor role required)
+  requestReviewResubmission: <T>(reviewId: number | string, deadlineIso?: string) => {
+    const path = `/reviews/${reviewId}/request-resubmission`
+    // Backend accepts empty PATCH or JSON with optional deadline
+    return deadlineIso
+      ? request<T>(path, 'PATCH', { json: { deadline: deadlineIso } })
+      : request<T>(path, 'PATCH')
+  },
 }

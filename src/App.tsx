@@ -4,7 +4,6 @@ import { MainLayout } from './app/layout/MainLayout'
 import { PublicLayout } from './app/layout/PublicLayout'
 import { Dashboard } from './pages/Dashboard'
 import { AuthorSubmissions } from './features/authors/AuthorSubmissions'
-import { EditorialQueue } from './features/editors/EditorialQueue'
 // import { ReviewerAssignments } from './features/reviewers/ReviewerAssignments'
 import MyReviewsPage from './pages/MyReviewsPage'
 import { HomePage } from './pages/HomePage'
@@ -213,16 +212,6 @@ function App() {
           <RequireAuth>
             <MainLayout>
               <AuthorsSubmissionPage />
-            </MainLayout>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/cabinet/editorial"
-        element={
-          <RequireAuth>
-            <MainLayout>
-              <EditorialQueue articles={articles} users={users} assignments={assignments} />
             </MainLayout>
           </RequireAuth>
         }
