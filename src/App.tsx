@@ -5,7 +5,8 @@ import { PublicLayout } from './app/layout/PublicLayout'
 import { Dashboard } from './pages/Dashboard'
 import { AuthorSubmissions } from './features/authors/AuthorSubmissions'
 import { EditorialQueue } from './features/editors/EditorialQueue'
-import { ReviewerAssignments } from './features/reviewers/ReviewerAssignments'
+// import { ReviewerAssignments } from './features/reviewers/ReviewerAssignments'
+import MyReviewsPage from './pages/MyReviewsPage'
 import { HomePage } from './pages/HomePage'
 import { AboutPage } from './pages/AboutPage'
 import { ArchivePage } from './pages/ArchivePage'
@@ -24,12 +25,16 @@ import { ProfilePage } from './pages/ProfilePage'
 import { ArticleDetailsPage } from './pages/ArticleDetailsPage'
 import { MyArticleDetailsPage } from './pages/MyArticleDetailsPage'
 import { ReviewFormPage } from './pages/ReviewFormPage'
+import ReviewDetailsPage from './pages/ReviewDetailsPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { journalData } from './data/mockData'
 import { LayoutBoard } from './features/designers/LayoutBoard'
 import { api } from './api/client'
 import type { ReactElement } from 'react'
+import EditorialUnassignedPage from './pages/EditorialUnassignedPage'
+import EditorialPortfolioPage from './pages/EditorialPortfolioPage'
+import EditorArticleDetailPage from './pages/EditorArticleDetailPage'
 
 function RequireAuth({ children }: { children: ReactElement }) {
   const tokens = api.getTokens()
@@ -73,6 +78,14 @@ function App() {
         element={
           <PublicLayout>
             <EditorialPage />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/editorial/unassigned"
+        element={
+          <PublicLayout>
+            <EditorialUnassignedPage />
           </PublicLayout>
         }
       />
@@ -179,7 +192,7 @@ function App() {
         element={
           <RequireAuth>
             <MainLayout>
-              <AuthorSubmissions articles={articles} users={users} />
+              <AuthorSubmissions />
             </MainLayout>
           </RequireAuth>
         }
@@ -215,6 +228,26 @@ function App() {
         }
       />
       <Route
+        path="/cabinet/editorial2"
+        element={
+          <RequireAuth>
+            <MainLayout>
+              <EditorialPortfolioPage />
+            </MainLayout>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/cabinet/editorial2/:id"
+        element={
+          <RequireAuth>
+            <MainLayout>
+              <EditorArticleDetailPage />
+            </MainLayout>
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/cabinet/layout"
         element={
           <RequireAuth>
@@ -229,7 +262,17 @@ function App() {
         element={
           <RequireAuth>
             <MainLayout>
-              <ReviewerAssignments assignments={assignments} articles={articles} users={users} />
+              <MyReviewsPage />
+            </MainLayout>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/cabinet/reviews/:id"
+        element={
+          <RequireAuth>
+            <MainLayout>
+              <ReviewDetailsPage />
             </MainLayout>
           </RequireAuth>
         }

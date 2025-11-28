@@ -72,6 +72,7 @@ export function AuthorsSubmissionPage() {
   const [articleType, setArticleType] = useState('')
   const [comments, setComments] = useState('')
   void setComments
+  const [generativeAiInfo, setGenerativeAiInfo] = useState('')
   const [confirmCopyright, setConfirmCopyright] = useState(false)
   const [confirmOriginality, setConfirmOriginality] = useState(false)
   const [confirmConsent, setConfirmConsent] = useState(false)
@@ -382,7 +383,7 @@ export function AuthorsSubmissionPage() {
                   not_published_elsewhere: true,
                   plagiarism_free: true,
                   authors_agree: true,
-                  generative_ai_info: null,
+                  generative_ai_info: generativeAiInfo.trim() || null,
 
                   authors_text: authors,
                   keyword_ids: selectedKeywords
@@ -569,7 +570,13 @@ export function AuthorsSubmissionPage() {
 
           <div className="form-field">
             <label className="form-label">Сведения о применении генеративного ИИ</label>
-            <textarea className="text-input" rows={3} />
+            <textarea
+              className="text-input"
+              rows={3}
+              value={generativeAiInfo}
+              onChange={(e) => setGenerativeAiInfo(e.target.value)}
+              placeholder="Опишите, где и как использовался генеративный ИИ (если применялся)"
+            />
           </div>
 
             <label className="checkbox">

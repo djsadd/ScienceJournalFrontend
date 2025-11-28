@@ -3,12 +3,18 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 
 export function RegisterPage() {
-  const [fullName, setFullName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [username, setUsername] = useState('')
-  const [affiliation, setAffiliation] = useState('')
+  const [organization, setOrganization] = useState('')
+  const [institution, setInstitution] = useState('')
+  const [role, setRole] = useState<'author' | 'editor' | 'reviewer'>('author')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [acceptTerms, setAcceptTerms] = useState(false)
+  const [notifyStatus, setNotifyStatus] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const navigate = useNavigate()
 
@@ -17,7 +23,30 @@ export function RegisterPage() {
     if (submitting) return
     setSubmitting(true)
     try {
-      const payload = { name: fullName, username, affiliation, email, password, confirmPassword: confirm }
+      setError(null)
+      if (password !== confirm) {
+        setError('Passwords do not match')
+        return
+      }
+      if (!acceptTerms) {
+        setError('Please accept the terms and privacy policy')
+        return
+      }
+
+      const payload = {
+        username,
+        email,
+        password,
+        full_name: `${firstName} ${lastName}`.trim(),
+        first_name: firstName,
+        last_name: lastName,
+        organization,
+        institution,
+        role,
+        accept_terms: acceptTerms,
+        notify_status: notifyStatus,
+      }
+
       const response = await api.post('/auth/register', payload)
       console.log('Register response:', response)
       navigate('/login')
@@ -41,17 +70,35 @@ export function RegisterPage() {
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
-          <label className="form-field">
-            <span className="form-label">Full name</span>
-            <input
-              className="text-input"
-              type="text"
-              placeholder="Your name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-            />
-          </label>
+          {error && (
+            <div className="form-error" role="alert" style={{ color: '#d00', marginBottom: '0.5rem' }}>
+              {error}
+            </div>
+          )}
+          <div className="grid grid-2 auth-grid">
+            <label className="form-field">
+              <span className="form-label">First name</span>
+              <input
+                className="text-input"
+                type="text"
+                placeholder="Your first name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+              />
+            </label>
+            <label className="form-field">
+              <span className="form-label">Last name</span>
+              <input
+                className="text-input"
+                type="text"
+                placeholder="Your last name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+              />
+            </label>
+          </div>
           <label className="form-field">
             <span className="form-label">Username</span>
             <input
@@ -63,17 +110,28 @@ export function RegisterPage() {
               required
             />
           </label>
-          <label className="form-field">
-            <span className="form-label">Affiliation</span>
-            <input
-              className="text-input"
-              type="text"
-              placeholder="University, company, institute"
-              value={affiliation}
-              onChange={(e) => setAffiliation(e.target.value)}
-              required
-            />
-          </label>
+          <div className="grid grid-2 auth-grid">
+            <label className="form-field">
+              <span className="form-label">Organization</span>
+              <input
+                className="text-input"
+                type="text"
+                placeholder="University, company"
+                value={organization}
+                onChange={(e) => setOrganization(e.target.value)}
+              />
+            </label>
+            <label className="form-field">
+              <span className="form-label">Institution</span>
+              <input
+                className="text-input"
+                type="text"
+                placeholder="Department, lab, institute"
+                value={institution}
+                onChange={(e) => setInstitution(e.target.value)}
+              />
+            </label>
+          </div>
           <label className="form-field">
             <span className="form-label">Work email</span>
             <input
@@ -84,6 +142,18 @@ export function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
+          </label>
+          <label className="form-field">
+            <span className="form-label">Role</span>
+            <select
+              className="text-input"
+              value={role}
+              onChange={(e) => setRole(e.target.value as 'author' | 'editor' | 'reviewer')}
+            >
+              <option value="author">Author</option>
+              <option value="reviewer">Reviewer</option>
+              <option value="editor">Editor</option>
+            </select>
           </label>
           <div className="grid grid-2 auth-grid">
             <label className="form-field">
@@ -113,11 +183,20 @@ export function RegisterPage() {
 
           <div className="auth-row auth-row--wrap">
             <label className="checkbox">
-              <input type="checkbox" required />
+              <input
+                type="checkbox"
+                checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+                required
+              />
               <span>I accept the offer and privacy policy</span>
             </label>
             <label className="checkbox">
-              <input type="checkbox" />
+              <input
+                type="checkbox"
+                checked={notifyStatus}
+                onChange={(e) => setNotifyStatus(e.target.checked)}
+              />
               <span>Send me updates and emails</span>
             </label>
           </div>

@@ -14,6 +14,22 @@ export interface AuthTokens {
   tokenType?: string
 }
 
+export class ApiError extends Error {
+  status: number
+  bodyText: string
+  bodyJson?: unknown
+  url: string
+
+  constructor(message: string, opts: { status: number; bodyText: string; bodyJson?: unknown; url: string }) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = opts.status
+    this.bodyText = opts.bodyText
+    this.bodyJson = opts.bodyJson
+    this.url = opts.url
+  }
+}
+
 const buildUrl = (path: string, params?: RequestOptions['params']) => {
   const url = new URL(path.replace(/^\//, ''), API_BASE)
   if (params) {
@@ -88,6 +104,7 @@ const request = async <T>(path: string, method: HttpMethod = 'GET', options: Req
 
     const resolvedHeaders: HeadersInit = {
       ...(json && !isFormData ? { 'Content-Type': 'application/json' } : {}),
+      Accept: 'application/json',
       ...(currentTokens?.accessToken ? { Authorization: `Bearer ${currentTokens.accessToken}` } : {}),
       ...(headers || {}),
     }
@@ -110,7 +127,14 @@ const request = async <T>(path: string, method: HttpMethod = 'GET', options: Req
 
   if (!response.ok) {
     const text = await response.text()
-    throw new Error(`API error ${response.status}: ${text}`)
+    let parsed: unknown | undefined
+    try {
+      parsed = text ? JSON.parse(text) : undefined
+    } catch {
+      parsed = undefined
+    }
+    const message = `API error ${response.status}`
+    throw new ApiError(message, { status: response.status, bodyText: text, bodyJson: parsed, url })
   }
 
   if (response.status === 204) return undefined as T
@@ -134,4 +158,25 @@ export const api = {
     currentTokens = null
     persistTokens(null)
   },
+  // Domain-specific helpers
+  getUnassignedArticles: <T>(params?: {
+    status?: string
+    author_name?: string
+    year?: number
+    article_type?: 'original' | 'review'
+    keywords?: string
+    search?: string
+    page?: number
+    page_size?: number
+  }) => request<T>('/articles/unassigned', 'GET', { params }),
+  getEditorArticleDetail: <T>(id: string | number) => request<T>(`/articles/editor/${id}`, 'GET'),
+  assignReviewers: <T>(articleId: string | number, body: { reviewer_ids: number[]; deadline?: string }) =>
+    request<T>(`/articles/${articleId}/assign_reviewers`, 'POST', { json: body }),
+  getArticleReviewers: <T>(articleId: string | number) => request<T>(`/articles/${articleId}/reviewers`, 'GET'),
+  getReviewers: <T>(language?: 'ru' | 'kz') => request<T>('/users/reviewers', 'GET', { params: { language } }),
+  // Reviews
+  getReviewById: <T>(reviewId: number | string) => request<T>(`/reviews/${reviewId}`, 'GET'),
+  getMyReviews: <T>() => request<T>('/reviews/my-reviews', 'GET'),
+  getReviewDetail: <T>(reviewId: number | string) => request<T>(`/reviews/${reviewId}/detail`, 'GET'),
+  updateReview: <T>(reviewId: number | string, body: unknown) => request<T>(`/reviews/${reviewId}`, 'PATCH', { json: body }),
 }

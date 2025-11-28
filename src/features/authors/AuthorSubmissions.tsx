@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { Article, User } from '../../shared/types'
+import type { Article } from '../../shared/types'
 import { Badge } from '../../shared/components/Badge'
 import { api } from '../../api/client'
 
-interface AuthorSubmissionsProps {
-  articles: Article[]
-  users: User[]
-}
+// No props; component loads data from API only
 
 interface WithdrawResponse {
   id: number
@@ -28,11 +25,11 @@ const getActionLabel = (status: Article['status']) => {
   }
 }
 
-export function AuthorSubmissions({ articles, users }: AuthorSubmissionsProps) {
+export function AuthorSubmissions() {
   const [statusFilter, setStatusFilter] = useState<'all' | Article['status']>('all')
   const [yearFilter, setYearFilter] = useState<'all' | string>('all')
   const [query, setQuery] = useState('')
-  const [lang, setLang] = useState<'ru' | 'en' | 'kz'>('ru')
+  // Language switcher removed per request; default language handled on details page
   const [apiArticles, setApiArticles] = useState<Article[]>([])
   const [revokeId, setRevokeId] = useState<number | null>(null)
   const [revokeMessage, setRevokeMessage] = useState<string | null>(null)
@@ -58,8 +55,8 @@ export function AuthorSubmissions({ articles, users }: AuthorSubmissionsProps) {
   }, [])
 
   const allArticles = useMemo(
-    () => [...articles, ...apiArticles],
-    [articles, apiArticles],
+    () => [...apiArticles],
+    [apiArticles],
   )
 
   const years = useMemo(
@@ -103,32 +100,6 @@ export function AuthorSubmissions({ articles, users }: AuthorSubmissionsProps) {
       <section className="section">
         <div className="panel">
           <div className="filters">
-            <div className="filter-group">
-              <label className="filter-label">Язык</label>
-              <div className="pill-list">
-                <button
-                  type="button"
-                  className={`chip-select ${lang === 'ru' ? 'chip-select--active' : ''}`}
-                  onClick={() => setLang('ru')}
-                >
-                  RU
-                </button>
-                <button
-                  type="button"
-                  className={`chip-select ${lang === 'en' ? 'chip-select--active' : ''}`}
-                  onClick={() => setLang('en')}
-                >
-                  EN
-                </button>
-                <button
-                  type="button"
-                  className={`chip-select ${lang === 'kz' ? 'chip-select--active' : ''}`}
-                  onClick={() => setLang('kz')}
-                >
-                  KZ
-                </button>
-              </div>
-            </div>
             <div className="filter-group">
               <label className="filter-label">Статус</label>
               <select
@@ -186,7 +157,7 @@ export function AuthorSubmissions({ articles, users }: AuthorSubmissionsProps) {
                   <div className="table__cell table__cell--title">
                     <div className="table__title">{article.title}</div>
                     <div className="table__meta">
-                      {users.find((u) => u.id === article.editorId)?.name ?? 'Редактор не назначен'}
+                      {'Редактор не назначен'}
                     </div>
                   </div>
                   <div className="table__cell">
@@ -199,7 +170,7 @@ export function AuthorSubmissions({ articles, users }: AuthorSubmissionsProps) {
                     <div className="pill-list">
                       <Link
                         className="button button--ghost button--compact"
-                        to={`/cabinet/my-articles/${article.id}?lang=${lang}`}
+                        to={`/cabinet/my-articles/${article.id}`}
                       >
                         {getActionLabel(article.status)}
                       </Link>

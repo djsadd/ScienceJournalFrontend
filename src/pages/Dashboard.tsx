@@ -10,9 +10,12 @@ interface DashboardProps {
 const statusLabelMap: Record<Article['status'], string> = {
   draft: 'Черновик',
   submitted: 'Отправлено',
+  under_review: 'В рецензировании',
   in_review: 'На рецензии',
   revisions: 'Требуют правок',
   accepted: 'Принято',
+  published: 'Опубликовано',
+  withdrawn: 'Отозвано',
   rejected: 'Отклонено',
 }
 

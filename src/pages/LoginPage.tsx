@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api } from '../api/client'
+import { api, ApiError } from '../api/client'
+import { Alert } from '../shared/components/Alert'
 
 export function LoginPage() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -14,6 +16,7 @@ export function LoginPage() {
     if (submitting) return
     setSubmitting(true)
     try {
+      setErrorMsg(null)
       const payload = { username, email, password }
       const response = await api.post<{ access_token: string; refresh_token?: string; token_type?: string }>(
         '/auth/login',
@@ -27,6 +30,28 @@ export function LoginPage() {
       navigate('/cabinet')
     } catch (error) {
       console.error('Login error:', error)
+      if (error instanceof ApiError) {
+        if (error.status === 403) {
+          let detail: string | undefined
+          if (error.bodyJson && typeof error.bodyJson === 'object' && 'detail' in (error.bodyJson as any)) {
+            detail = String((error.bodyJson as any).detail)
+          }
+          if (detail && /pending approval/i.test(detail)) {
+            setErrorMsg('Ваш аккаунт ожидает подтверждения администратором. Доступ будет открыт после проверки.')
+          } else {
+            setErrorMsg('Доступ в систему закрыт. Обратитесь к администратору или в поддержку.')
+          }
+          return
+        }
+        if (error.status === 401) {
+          setErrorMsg('Неверные учетные данные. Проверьте email/username и пароль.')
+          return
+        }
+        // Fallback for other API errors
+        setErrorMsg('Не удалось выполнить вход. Повторите попытку позже.')
+        return
+      }
+      setErrorMsg('Не удалось выполнить вход. Проверьте подключение и попробуйте снова.')
     } finally {
       setSubmitting(false)
     }
@@ -44,6 +69,11 @@ export function LoginPage() {
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
+          {errorMsg && (
+            <Alert variant="error" title="Нет доступа" className="auth-alert" >
+              {errorMsg}
+            </Alert>
+          )}
           <label className="form-field">
             <span className="form-label">Username</span>
             <input

@@ -36,9 +36,12 @@ const statusLabel: Record<Exclude<StatusFilter, 'all'>, string> = {
 const articleStatusLabel: Record<Article['status'], string> = {
   draft: 'Черновик',
   submitted: 'Новая',
+  under_review: 'В рецензировании',
   in_review: 'На рецензии',
   revisions: 'На доработке',
   accepted: 'Принята',
+  published: 'Опубликована',
+  withdrawn: 'Отозвана',
   rejected: 'Отклонена',
 }
 
@@ -140,7 +143,7 @@ export function EditorialQueue({ articles, users, assignments }: EditorialQueueP
     return assigned
       .map((a, idx) => {
         const reviewer = users.find((u) => u.id === a.reviewerId)
-        const review = article.reviews.find((r) => r.reviewerId === a.reviewerId)
+        const review = (article.reviews || []).find((r) => r.reviewerId === a.reviewerId)
         const icon = review ? '✓' : new Date(a.dueAt) < new Date() ? '✏' : '✉'
         const prefix = reviewer ? reviewer.name.split(' ')[0] : `R${idx + 1}`
         return `${prefix} ${icon}`

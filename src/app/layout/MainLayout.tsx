@@ -40,6 +40,7 @@ const roleNav: Record<
       title: 'Редакционный поток',
       items: [
         { label: 'Редакционный портфель', path: '/cabinet/editorial' },
+        { label: 'Второй редакционный портфель', path: '/cabinet/editorial2' },
         { label: 'Рецензии и отзывы', path: '/cabinet/reviews' },
         { label: 'Профиль', path: '/cabinet/profile' },
       ],
@@ -70,7 +71,10 @@ const allRoles: RoleKey[] = ['author', 'editor', 'reviewer', 'designer']
 const isRoleKey = (value: string): value is RoleKey => allRoles.includes(value as RoleKey)
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const [activeRole, setActiveRole] = useState<RoleKey>('author')
+  const [activeRole, setActiveRole] = useState<RoleKey>(() => {
+    const stored = typeof window !== 'undefined' ? window.localStorage.getItem('activeRole') : null
+    return stored && isRoleKey(stored) ? stored : 'author'
+  })
   const [availableRoles, setAvailableRoles] = useState<RoleKey[]>(allRoles)
   const navigate = useNavigate()
 
@@ -83,12 +87,19 @@ export function MainLayout({ children }: MainLayoutProps) {
         const nextRoles: RoleKey[] = roles.length > 0 ? roles : ['author']
         if (!isMounted) return
         setAvailableRoles(nextRoles)
-        setActiveRole((prev) => (nextRoles.includes(prev) ? prev : nextRoles[0]))
+        setActiveRole((prev) => {
+          const stored = typeof window !== 'undefined' ? window.localStorage.getItem('activeRole') : null
+          const preferred = stored && isRoleKey(stored) && nextRoles.includes(stored) ? stored : undefined
+          return preferred ?? (nextRoles.includes(prev) ? prev : nextRoles[0])
+        })
       } catch (error) {
         console.error('Failed to load roles', error)
         if (!isMounted) return
         setAvailableRoles(['author'])
-        setActiveRole('author')
+        setActiveRole(() => {
+          const stored = typeof window !== 'undefined' ? window.localStorage.getItem('activeRole') : null
+          return stored && isRoleKey(stored) ? stored : 'author'
+        })
       }
     }
     loadRoles()
@@ -119,7 +130,12 @@ export function MainLayout({ children }: MainLayoutProps) {
               key={role}
               type="button"
               className={`role-chip ${activeRole === role ? 'role-chip--active' : ''}`}
-              onClick={() => setActiveRole(role)}
+              onClick={() => {
+                setActiveRole(role)
+                try {
+                  window.localStorage.setItem('activeRole', role)
+                } catch {}
+              }}
             >
               {roleOptions[role]}
             </button>

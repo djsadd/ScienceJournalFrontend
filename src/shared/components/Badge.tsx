@@ -8,6 +8,10 @@ const statusMap: Record<
 > = {
   draft: { label: 'Черновик', tone: 'muted' },
   submitted: { label: 'Отправлено', tone: 'info' },
+  in_progress: { label: 'В работе', tone: 'warn' },
+  completed: { label: 'Завершено', tone: 'success' },
+  cancelled: { label: 'Отменена', tone: 'muted' },
+  pending: { label: 'Ожидает', tone: 'info' },
   in_review: { label: 'На рецензии', tone: 'warn' },
   revisions: { label: 'Правки', tone: 'warn' },
   accepted: { label: 'Принято', tone: 'success' },

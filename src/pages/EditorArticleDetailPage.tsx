@@ -1,0 +1,577 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { api } from '../api/client'
+import { formatArticleStatus, formatArticleType } from '../shared/labels'
+
+// Minimal interfaces matching backend ArticleOut
+interface KeywordOut {
+  id: number
+  title_kz?: string | null
+  title_en?: string | null
+  title_ru?: string | null
+}
+
+interface AuthorOut {
+  id: number
+  email: string
+  prefix?: string | null
+  first_name: string
+  patronymic?: string | null
+  last_name: string
+  phone?: string | null
+  address?: string | null
+  country?: string | null
+  affiliation1?: string | null
+  affiliation2?: string | null
+  affiliation3?: string | null
+  is_corresponding: boolean
+  orcid?: string | null
+  scopus_author_id?: string | null
+  researcher_id?: string | null
+}
+
+interface ArticleVersionOut {
+  id: number
+  created_at: string
+  updated_at?: string | null
+  // relaxed fields; backend may include authors/keywords
+  authors?: AuthorOut[]
+  keywords?: KeywordOut[]
+}
+
+interface ArticleOut {
+  id: number
+  title_kz?: string | null
+  title_en?: string | null
+  title_ru?: string | null
+  abstract_kz?: string | null
+  abstract_en?: string | null
+  abstract_ru?: string | null
+  doi?: string | null
+  status: string
+  article_type: string
+  responsible_user_id?: number
+  antiplagiarism_file_url?: string | null
+  not_published_elsewhere?: boolean
+  plagiarism_free?: boolean
+  authors_agree?: boolean
+  generative_ai_info?: string | null
+  manuscript_file_url?: string | null
+  author_info_file_url?: string | null
+  cover_letter_file_url?: string | null
+  created_at: string
+  updated_at?: string | null
+  versions: ArticleVersionOut[]
+  keywords: KeywordOut[]
+  authors: AuthorOut[]
+}
+
+export default function EditorArticleDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const [data, setData] = useState<ArticleOut | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [lang, setLang] = useState<'ru' | 'en' | 'kz'>(() => {
+    const params = new URLSearchParams(window.location.search)
+    const fromQuery = params.get('lang') as 'ru' | 'en' | 'kz' | null
+    return fromQuery && ['ru', 'en', 'kz'].includes(fromQuery) ? fromQuery : 'ru'
+  })
+
+  const title = useMemo(() => {
+    if (!data) return ''
+    return (lang === 'ru' ? data.title_ru : lang === 'en' ? data.title_en : data.title_kz) || data.title_ru || data.title_en || data.title_kz || 'Без заголовка'
+  }, [data, lang])
+
+  type ReviewerFullInfo = {
+    // From User Profile Service
+    id: number
+    user_id: number
+    full_name: string
+    phone?: string | null
+    organization?: string | null
+    roles: string[]
+    preferred_language: 'ru' | 'kz' | 'en'
+    is_active?: boolean | null
+    // From Auth - Identity Service
+    username?: string | null
+    email?: string | null
+    first_name?: string | null
+    last_name?: string | null
+    institution?: string | null
+  }
+  type ReviewStatus = 'pending' | 'in_progress' | 'completed'
+  type ArticleReviewerAssignment = {
+    id: number
+    reviewer_id: number
+    deadline?: string | null
+    reviewer?: ReviewerFullInfo
+    status?: ReviewStatus
+    recommendation?: string | null
+    updated_at?: string | null
+    has_content?: boolean
+  }
+  interface ReviewOut {
+    id: number
+    article_id: number
+    reviewer_id: number
+    comments?: string | null
+    recommendation?: string | null
+    status: ReviewStatus
+    deadline?: string | null
+    importance_applicability?: string | null
+    novelty_application?: string | null
+    originality?: string | null
+    innovation_product?: string | null
+    results_significance?: string | null
+    coherence?: string | null
+    style_quality?: string | null
+    editorial_compliance?: string | null
+    created_at?: string | null
+    updated_at?: string | null
+  }
+  const [reviewList, setReviewList] = useState<ArticleReviewerAssignment[]>([])
+  const [reviewListLoading, setReviewListLoading] = useState(false)
+  const [reviewListError, setReviewListError] = useState<string | null>(null)
+  const [isAddReviewerOpen, setIsAddReviewerOpen] = useState(false)
+  const [availableReviewers, setAvailableReviewers] = useState<ReviewerFullInfo[]>([])
+  const [availableLoading, setAvailableLoading] = useState(false)
+  const [availableError, setAvailableError] = useState<string | null>(null)
+  const [assigningReviewerId, setAssigningReviewerId] = useState<number | null>(null)
+  const [assignDeadline, setAssignDeadline] = useState('')
+  const [assignLoading, setAssignLoading] = useState(false)
+  const [assignError, setAssignError] = useState<string | null>(null)
+  const [assignSuccess, setAssignSuccess] = useState<string | null>(null)
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewError, setReviewError] = useState<string | null>(null)
+  const [reviewDetails, setReviewDetails] = useState<ReviewOut | null>(null)
+
+  const parseDeadlineToISO = (input: string): string | null => {
+    const trimmed = input.trim()
+    if (!trimmed) return null
+    const m = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/)
+    if (!m) return null
+    const d = Number(m[1])
+    const mo = Number(m[2])
+    const y = Number(m[3])
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null
+    const date = new Date(Date.UTC(y, mo - 1, d, 23, 59, 59))
+    if (
+      date.getUTCFullYear() !== y ||
+      date.getUTCMonth() !== mo - 1 ||
+      date.getUTCDate() !== d
+    ) {
+      return null
+    }
+    return date.toISOString()
+  }
+
+  useEffect(() => {
+    if (!isAddReviewerOpen) return
+    setAvailableLoading(true)
+    setAvailableError(null)
+    api.getReviewers<ReviewerFullInfo[]>()
+      .then((list) => {
+        try { console.log('[Reviewers] fetched', list) } catch {}
+        setAvailableReviewers(list)
+      })
+      .catch((e: any) => {
+        const message = e?.bodyJson?.detail || e?.message || 'Не удалось загрузить рецензентов'
+        setAvailableError(String(message))
+      })
+      .finally(() => setAvailableLoading(false))
+  }, [isAddReviewerOpen])
+
+  const fetchArticleReviewers = async (articleId: string) => {
+    setReviewListLoading(true)
+    setReviewListError(null)
+    try {
+      const res = await api.getArticleReviewers<{ article_id: number; reviews: ArticleReviewerAssignment[] }>(articleId)
+      try { console.log('[ArticleReviewers] fetched', res) } catch {}
+      setReviewList(res.reviews || [])
+    } catch (e: any) {
+      const message = e?.bodyJson?.detail || e?.message || 'Не удалось загрузить рецензентов статьи'
+      setReviewListError(String(message))
+    } finally {
+      setReviewListLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!id) return
+    setLoading(true)
+    setError(null)
+    api
+      .getEditorArticleDetail<ArticleOut>(id)
+      .then((res) => {
+        try { console.log('[EditorDetail] Article:', res) } catch {}
+        setData(res)
+      })
+      .catch((e: any) => {
+        const message = e?.bodyJson?.detail || e?.message || 'Failed to load'
+        try { console.error('[EditorDetail] Error:', e) } catch {}
+        setError(String(message))
+      })
+      .finally(() => setLoading(false))
+    // Fetch article reviewers
+    fetchArticleReviewers(id)
+  }, [id])
+
+  const openReviewModal = async (reviewId: number) => {
+    setIsReviewModalOpen(true)
+    setReviewLoading(true)
+    setReviewError(null)
+    setReviewDetails(null)
+    try {
+      const details = await api.getReviewById<ReviewOut>(reviewId)
+      try { console.log('[ReviewDetails] fetched', details) } catch {}
+      setReviewDetails(details)
+    } catch (e: any) {
+      const message = e?.bodyJson?.detail || e?.message || 'Не удалось загрузить рецензию'
+      setReviewError(String(message))
+    } finally {
+      setReviewLoading(false)
+    }
+  }
+
+  const renderStatusBadge = (status?: ReviewStatus) => {
+    const s = status || 'pending'
+    const map: Record<ReviewStatus, { label: string; cls: string }> = {
+      pending: { label: 'Ожидает', cls: 'badge badge--muted' },
+      in_progress: { label: 'В работе', cls: 'badge badge--warn' },
+      completed: { label: 'Готово', cls: 'badge badge--success' },
+    }
+    const meta = map[s]
+    return <span className={meta.cls}>{meta.label}</span>
+  }
+
+  return (
+    <div className="app-container">
+      <section className="section-header">
+        <div>
+          <p className="eyebrow">Редактор</p>
+        </div>
+        <div className="lang-switch">
+          {(['ru','en','kz'] as const).map((l) => (
+            <button key={l} className={`lang-chip ${lang === l ? 'lang-chip--active' : ''}`} onClick={() => setLang(l)}>{l.toUpperCase()}</button>
+          ))}
+        </div>
+      </section>
+
+      {error && <div className="alert error">Ошибка: {error}</div>}
+      {loading && <div className="loading">Загрузка...</div>}
+
+      {data && (
+        <section className="section">
+          <div className="panel">
+            <h2 className="panel-title">{title}</h2>
+            <div className="article-meta">
+              <span className="meta-label">Тип:</span> {formatArticleType(data.article_type, lang)}
+              <span className="dot">•</span>
+              <span className="meta-label">Статус:</span> {formatArticleStatus(data.status, lang)}
+              <span className="dot">•</span>
+              <span className="meta-label">DOI:</span> {data.doi || '—'}
+              <span className="dot">•</span>
+              <span className="meta-label">Создано:</span> {new Date(data.created_at).toLocaleString()}
+            </div>
+          </div>
+
+          <div className="panel">
+            <h3 className="panel-title">Авторы</h3>
+            {data.authors.length === 0 ? (
+              <div className="table__empty">Авторы пока не добавлены.</div>
+            ) : (
+              <div className="table">
+                <div className="table__head">
+                  <span>Имя</span>
+                  <span>Email</span>
+                  <span>Аффилиация</span>
+                  <span>Контактный?</span>
+                </div>
+                <div className="table__body">
+                  {data.authors.map((a) => (
+                    <div className="table__row" key={a.id}>
+                      <div className="table__cell">
+                        <div className="table__title">{`${a.last_name} ${a.first_name}${a.patronymic ? ' ' + a.patronymic : ''}`}</div>
+                        <div className="table__meta">{a.prefix || ''}</div>
+                      </div>
+                      <div className="table__cell">{a.email}</div>
+                      <div className="table__cell">{[a.affiliation1, a.affiliation2, a.affiliation3].filter(Boolean).join('; ') || '—'}</div>
+                      <div className="table__cell">{a.is_corresponding ? 'Да' : 'Нет'}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="panel">
+            <h3 className="panel-title">Ключевые слова</h3>
+            {data.keywords.length === 0 ? (
+              <div className="table__empty">Ключевые слова не указаны.</div>
+            ) : (
+              <div className="pill-list">
+                {data.keywords.map((k) => (
+                  <span key={k.id} className="pill pill--ghost">{k.title_ru || k.title_en || k.title_kz}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="panel">
+            <h3 className="panel-title">Файлы</h3>
+            <div className="actions">
+              <a className="button button--ghost button--compact" href={data.manuscript_file_url || '#'} target="_blank" rel="noreferrer">Рукопись</a>
+              {data.antiplagiarism_file_url && (
+                <a className="button button--ghost button--compact" href={data.antiplagiarism_file_url} target="_blank" rel="noreferrer">Антиплагиат</a>
+              )}
+              {data.author_info_file_url && (
+                <a className="button button--ghost button--compact" href={data.author_info_file_url} target="_blank" rel="noreferrer">Автор инфо</a>
+              )}
+              {data.cover_letter_file_url && (
+                <a className="button button--ghost button--compact" href={data.cover_letter_file_url} target="_blank" rel="noreferrer">Письмо</a>
+              )}
+            </div>
+          </div>
+
+          <div className="panel">
+            <h3 className="panel-title">Версии</h3>
+            {data.versions.length === 0 ? (
+              <div className="table__empty">Версий пока нет.</div>
+            ) : (
+              <div className="table">
+                <div className="table__head">
+                  <span>ID</span>
+                  <span>Создано</span>
+                  <span>К-во авторов</span>
+                  <span>К-во ключ. слов</span>
+                </div>
+                <div className="table__body">
+                  {data.versions.map((v) => (
+                    <div className="table__row" key={v.id}>
+                      <div className="table__cell">{v.id}</div>
+                      <div className="table__cell">{new Date(v.created_at).toLocaleString()}</div>
+                      <div className="table__cell">{v.authors?.length ?? 0}</div>
+                      <div className="table__cell">{v.keywords?.length ?? 0}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+
+
+          <div className="panel">
+            <div className="panel-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+              <h3 className="panel-title" style={{ margin: 0 }}>Рецензенты</h3>
+              <button className="button button--primary" onClick={() => setIsAddReviewerOpen(true)}>Добавить рецензента</button>
+            </div>
+            {reviewListError && <div className="alert error">Ошибка: {reviewListError}</div>}
+            {reviewListLoading ? (
+              <div className="loading">Загрузка рецензентов...</div>
+            ) : reviewList.length === 0 ? (
+              <div className="table__empty">Рецензенты пока не назначены.</div>
+            ) : (
+              <div className="table">
+                <div className="table__head">
+                  <span>Рецензент</span>
+                  <span>Email</span>
+                  <span>Дедлайн</span>
+                  <span>Статус</span>
+                  <span>Действия</span>
+                </div>
+                <div className="table__body">
+                  {reviewList.map((r) => {
+                    const fullName = r.reviewer?.full_name || `ID: ${r.reviewer_id}`
+                    const email = r.reviewer?.email || '—'
+                    const deadline = r.deadline ? new Date(r.deadline).toLocaleDateString() : '—'
+                    return (
+                      <div className="table__row table__row--align" key={`${r.reviewer_id}-${r.deadline ?? ''}`}>
+                        <div className="table__cell">
+                          <div className="table__title">{fullName}</div>
+                          <div className="table__meta">ID: {r.reviewer?.id ?? r.reviewer_id}</div>
+                        </div>
+                        <div className="table__cell">{email}</div>
+                        <div className="table__cell">{deadline}</div>
+                        <div className="table__cell">{renderStatusBadge(r.status)}</div>
+                        <div className="table__cell table__cell--actions">
+                          <div className="actions">
+                            {r.status === 'completed' && r.id ? (
+                              <button
+                                className="button button--primary button--compact"
+                                onClick={() => openReviewModal(r.id)}
+                              >Просмотреть</button>
+                            ) : (
+                              <button className="button button--ghost button--compact" disabled>Посмотреть</button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Removed old review details modal tied to mock data */}
+
+      {isAddReviewerOpen && (
+        <div className="modal-backdrop" onClick={() => setIsAddReviewerOpen(false)}>
+          <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ margin: 0 }}>Добавить рецензента</h3>
+              <button className="modal__close" onClick={() => setIsAddReviewerOpen(false)}>×</button>
+            </div>
+            <div className="modal__body">
+
+              {availableError && <div className="alert error">Ошибка: {availableError}</div>}
+              {assignError && <div className="alert error">Ошибка назначения: {assignError}</div>}
+              {assignSuccess && <div className="alert">{assignSuccess}</div>}
+              {availableLoading ? (
+                <div className="loading">Загрузка рецензентов...</div>
+              ) : (
+              <div className="table table--reviewers">
+                <div className="table__head">
+                  <span>Рецензент</span>
+                  <span>Email</span>
+                  <span>Организация</span>
+                  <span>Язык</span>
+                  <span>ID</span>
+                  <span>Активен</span>
+                  <span>Действия</span>
+                </div>
+                <div className="table__body">
+                  {availableReviewers.length === 0 ? (
+                    <div className="table__row">
+                      <div className="table__cell" style={{ gridColumn: '1 / -1' }}>Ничего не найдено.</div>
+                    </div>
+                  ) : (
+                    availableReviewers.map((r) => (
+                      <div className="table__row table__row--align" key={r.id}>
+                        <div className="table__cell">
+                          <div className="table__title">{r.full_name}</div>
+                        </div>
+                        <div className="table__cell">{r.email ?? '—'}</div>
+                        <div className="table__cell">{r.organization ?? '—'}</div>
+                        <div className="table__cell">{r.preferred_language?.toUpperCase?.() ?? '—'}</div>
+                        <div className="table__cell">{r.id}</div>
+                        <div className="table__cell">{r.is_active == null ? '—' : r.is_active ? 'Да' : 'Нет'}</div>
+                        <div className="table__cell table__cell--actions">
+                          {assigningReviewerId === r.id ? (
+                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <input
+                                className="text-input"
+                                type="text"
+                                placeholder="ДД.ММ.ГГГГ (например, 31.12.2025)"
+                                value={assignDeadline}
+                                onChange={(e) => setAssignDeadline(e.target.value)}
+                                style={{ maxWidth: '260px' }}
+                              />
+                              <span className="form-hint">Формат: ДД.ММ.ГГГГ</span>
+                              <button
+                                className="button button--primary button--compact"
+                                disabled={assignLoading}
+                                onClick={async () => {
+                                  if (!id) return
+                                  setAssignLoading(true)
+                                  setAssignError(null)
+                                  setAssignSuccess(null)
+                                  try {
+                                    const payload: { reviewer_ids: number[]; deadline?: string } = {
+                                      reviewer_ids: [r.id],
+                                    }
+                                    if (assignDeadline.trim()) {
+                                      const iso = parseDeadlineToISO(assignDeadline)
+                                      if (!iso) {
+                                        setAssignError('Некорректная дата. Формат: ДД.ММ.ГГГГ')
+                                        setAssignLoading(false)
+                                        return
+                                      }
+                                      payload.deadline = iso
+                                    }
+                                    const res = await api.assignReviewers<{ message: string; article_id: number; reviewer_ids: number[] }>(id, payload)
+                                    try { console.log('[AssignReviewer] success', res) } catch {}
+                                    setAssignSuccess('Рецензент назначен успешно')
+                                    setAssigningReviewerId(null)
+                                    setAssignDeadline('')
+                                    await fetchArticleReviewers(id)
+                                  } catch (e: any) {
+                                    const message = e?.bodyJson?.detail || e?.message || 'Не удалось назначить рецензента'
+                                    setAssignError(String(message))
+                                  } finally {
+                                    setAssignLoading(false)
+                                  }
+                                }}
+                              >Назначить</button>
+                              <button
+                                className="button button--ghost button--compact"
+                                onClick={() => { setAssigningReviewerId(null); setAssignDeadline('') }}
+                              >Отмена</button>
+                            </div>
+                          ) : (
+                            <button
+                              className="button button--primary button--compact"
+                              onClick={() => { setAssigningReviewerId(r.id); setAssignError(null); setAssignSuccess(null); }}
+                            >Назначить</button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              )}
+            </div>
+            <div className="modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button className="button button--ghost" onClick={() => setIsAddReviewerOpen(false)}>Отмена</button>
+              <button className="button button--primary" onClick={() => setIsAddReviewerOpen(false)}>Готово</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isReviewModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsReviewModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ margin: 0 }}>Рецензия</h3>
+              <button className="modal__close" onClick={() => setIsReviewModalOpen(false)}>×</button>
+            </div>
+            <div className="modal__body">
+              {reviewError && <div className="alert error">Ошибка: {reviewError}</div>}
+              {reviewLoading && <div className="loading">Загрузка...</div>}
+              {!reviewLoading && reviewDetails && (
+                <div className="details-grid">
+                  <div><strong>ID:</strong> {reviewDetails.id}</div>
+                  <div><strong>Статья:</strong> {reviewDetails.article_id}</div>
+                  <div><strong>Рецензент:</strong> {reviewDetails.reviewer_id}</div>
+                  <div><strong>Статус:</strong> {renderStatusBadge(reviewDetails.status)}</div>
+                  <div><strong>Рекомендация:</strong> {reviewDetails.recommendation || '—'}</div>
+                  <div><strong>Дедлайн:</strong> {reviewDetails.deadline ? new Date(reviewDetails.deadline).toLocaleString() : '—'}</div>
+                  <div style={{ gridColumn: '1 / -1' }}><strong>Комментарии:</strong><br/>{reviewDetails.comments || '—'}</div>
+                  <div style={{ gridColumn: '1 / -1' }}><strong>Практическая значимость:</strong><br/>{reviewDetails.importance_applicability || '—'}</div>
+                  <div style={{ gridColumn: '1 / -1' }}><strong>Новизна применения:</strong><br/>{reviewDetails.novelty_application || '—'}</div>
+                  <div style={{ gridColumn: '1 / -1' }}><strong>Оригинальность:</strong><br/>{reviewDetails.originality || '—'}</div>
+                  <div style={{ gridColumn: '1 / -1' }}><strong>Инновационный продукт:</strong><br/>{reviewDetails.innovation_product || '—'}</div>
+                  <div style={{ gridColumn: '1 / -1' }}><strong>Значимость результатов:</strong><br/>{reviewDetails.results_significance || '—'}</div>
+                  <div style={{ gridColumn: '1 / -1' }}><strong>Логичность:</strong><br/>{reviewDetails.coherence || '—'}</div>
+                  <div style={{ gridColumn: '1 / -1' }}><strong>Качество стиля:</strong><br/>{reviewDetails.style_quality || '—'}</div>
+                  <div style={{ gridColumn: '1 / -1' }}><strong>Соответствие требованиям:</strong><br/>{reviewDetails.editorial_compliance || '—'}</div>
+                  <div><strong>Создано:</strong> {reviewDetails.created_at ? new Date(reviewDetails.created_at).toLocaleString() : '—'}</div>
+                  <div><strong>Обновлено:</strong> {reviewDetails.updated_at ? new Date(reviewDetails.updated_at).toLocaleString() : '—'}</div>
+                </div>
+              )}
+            </div>
+            <div className="modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button className="button button--primary" onClick={() => setIsReviewModalOpen(false)}>Закрыть</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

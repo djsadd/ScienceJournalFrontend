@@ -770,6 +770,19 @@
   color: var(--muted);
 }
 
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-badge--withdrawn {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
 .stat-block {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -1939,6 +1952,7 @@
   border-radius: 12px;
   font-weight: 700;
   color: #4c5160;
+  align-items: center; /* keep header content vertically centered */
 }
 
 .table__body {
@@ -2076,6 +2090,19 @@
   grid-template-columns: 1.5fr 1fr 0.9fr 1fr 0.7fr 1fr;
 }
 
+/* Portfolio table: 5 columns (title, type, status, authors, files) */
+.table--portfolio .table__head {
+  grid-template-columns: 1.6fr 0.6fr 0.8fr 1.1fr 1.2fr; /* more room for actions */
+}
+
+.table--portfolio .table__head > * {
+  display: block; /* ensure header cells have height */
+}
+
+.table--portfolio .table__row {
+  grid-template-columns: 1.6fr 0.6fr 0.8fr 1.1fr 1.2fr;
+}
+
 .table__row--align {
   align-items: center;
 }
@@ -2087,8 +2114,34 @@
 
 .table__cell--actions {
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
-  gap: 0.3rem;
+  gap: 0.35rem;
+}
+
+/* Reviewers selection table: 7 columns (name, email, org, lang, id, active, actions) */
+.table--reviewers .table__head {
+  grid-template-columns: 1.6fr 1.2fr 1.1fr 0.6fr 0.5fr 0.6fr 0.9fr;
+}
+
+.table--reviewers .table__row {
+  grid-template-columns: 1.6fr 1.2fr 1.1fr 0.6fr 0.5fr 0.6fr 0.9fr;
+}
+
+@media (max-width: 900px) {
+  .modal.modal--wide {
+    width: 96vw;
+  }
+  .table--reviewers .table__head,
+  .table--reviewers .table__row {
+    grid-template-columns: 1.3fr 1fr 0.9fr 0.6fr 0.5fr 0.6fr 0.8fr;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 
 .reviewer-chip {
