@@ -149,6 +149,15 @@ export default function EditorArticleDetailPage() {
   const [resubmitting, setResubmitting] = useState(false)
   const [resubError, setResubError] = useState<string | null>(null)
   const [resubSuccess, setResubSuccess] = useState<string | null>(null)
+  // Current user info for role-based gating
+  const [me, setMe] = useState<{ role?: string; roles?: string[] } | null>(null)
+  useEffect(() => {
+    // Silent fetch of /auth/me for role gating; errors are ignored
+    api.get<{ role?: string; roles?: string[] }>('/auth/me')
+      .then(setMe)
+      .catch(() => {})
+  }, [])
+  const isEditor = (me?.role === 'editor') || (me?.roles?.includes('editor'))
 
   const parseDeadlineToISO = (input: string): string | null => {
     const trimmed = input.trim()
@@ -586,26 +595,28 @@ export default function EditorArticleDetailPage() {
                   <div style={{ gridColumn: '1 / -1' }}><strong>Соответствие требованиям:</strong><br/>{reviewDetails.editorial_compliance || '—'}</div>
                   <div><strong>Создано:</strong> {reviewDetails.created_at ? new Date(reviewDetails.created_at).toLocaleString() : '—'}</div>
                   <div><strong>Обновлено:</strong> {reviewDetails.updated_at ? new Date(reviewDetails.updated_at).toLocaleString() : '—'}</div>
-                  <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-                      <label style={{ fontWeight: 600 }}>Новый дедлайн (опционально):</label>
-                      <input
-                        className="text-input"
-                        type="datetime-local"
-                        value={resubDeadlineLocal}
-                        onChange={(e) => setResubDeadlineLocal(e.target.value)}
-                        style={{ maxWidth: '260px' }}
-                      />
-                      <span className="form-hint">Если не указать — статус всё равно станет resubmission</span>
+                  {isEditor && (
+                    <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+                        <label style={{ fontWeight: 600 }}>Новый дедлайн (опционально):</label>
+                        <input
+                          className="text-input"
+                          type="datetime-local"
+                          value={resubDeadlineLocal}
+                          onChange={(e) => setResubDeadlineLocal(e.target.value)}
+                          style={{ maxWidth: '260px' }}
+                        />
+                        <span className="form-hint">Если не указать — статус всё равно станет resubmission</span>
+                      </div>
+                      {resubError && <div className="alert error" style={{ marginTop: '0.5rem' }}>Ошибка: {resubError}</div>}
+                      {resubSuccess && <div className="alert" style={{ marginTop: '0.5rem' }}>{resubSuccess}</div>}
                     </div>
-                    {resubError && <div className="alert error" style={{ marginTop: '0.5rem' }}>Ошибка: {resubError}</div>}
-                    {resubSuccess && <div className="alert" style={{ marginTop: '0.5rem' }}>{resubSuccess}</div>}
-                  </div>
+                  )}
                 </div>
               )}
             </div>
             <div className="modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              {reviewDetails && (
+              {reviewDetails && isEditor && (
                 <button
                   className="button button--warn"
                   disabled={resubmitting}

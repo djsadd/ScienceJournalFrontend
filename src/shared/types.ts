@@ -123,7 +123,7 @@ export interface ReviewItem {
   reviewer_id: number
   comments: string | null
   recommendation: 'accept' | 'minor_revision' | 'major_revision' | 'reject' | string
-  status: 'in_progress' | 'submitted' | 'completed' | 'cancelled' | string
+  status: 'in_progress' | 'submitted' | 'completed' | 'cancelled' | 'resubmission' | string
   importance_applicability: string | null
   novelty_application: string | null
   originality: string | null
@@ -144,7 +144,7 @@ export interface ReviewDetail {
   article_title?: string | null
   comments: string | null
   recommendation: 'accept' | 'minor_revision' | 'major_revision' | 'reject' | string | null
-  status: 'pending' | 'in_progress' | 'submitted' | 'completed' | 'cancelled' | string
+  status: 'pending' | 'in_progress' | 'submitted' | 'completed' | 'cancelled' | 'resubmission' | string
   deadline: string | null
   importance_applicability?: string | null
   novelty_application?: string | null
