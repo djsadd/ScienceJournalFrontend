@@ -157,3 +157,18 @@ export interface ReviewDetail {
   created_at?: string | null
   updated_at?: string | null
 }
+
+// API: Volume with embedded articles (simplified shape based on backend VolumeBase + joined articles)
+export interface Volume {
+  id?: number
+  year: number
+  number: number
+  month?: number | null
+  title_kz?: string | null
+  title_en?: string | null
+  title_ru?: string | null
+  description?: string | null
+  is_active: boolean
+  // When joined load includes articles with authors & keywords
+  articles?: Article[]
+}

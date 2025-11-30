@@ -1,69 +1,42 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { api } from '../api/client'
+import type { Volume as ApiVolume } from '../shared/types'
 
-type Volume = {
-  title: string
-  description: string
-  date: string
-}
-
-type ArchiveYear = {
-  year: number
-  volumes: Volume[]
-}
-
-const archives: ArchiveYear[] = [
-  {
-    year: 2025,
-    volumes: [
-      {
-        title: 'Том 12, №1',
-        description: 'Фокус: цифровая экономика, финансы и управление.',
-        date: 'Март 2025',
-      },
-    ],
-  },
-  {
-    year: 2024,
-    volumes: [
-      {
-        title: 'Том 11, №4',
-        description: 'Право и государственное управление, кейсы ГЧП.',
-        date: 'Декабрь 2024',
-      },
-      {
-        title: 'Том 11, №3',
-        description: 'Социальные и гуманитарные науки, миграционные процессы.',
-        date: 'Сентябрь 2024',
-      },
-      {
-        title: 'Том 11, №2',
-        description: 'Маркетинг и предпринимательство, устойчивые модели роста.',
-        date: 'Июнь 2024',
-      },
-    ],
-  },
-  {
-    year: 2023,
-    volumes: [
-      {
-        title: 'Том 10, №4',
-        description: 'Экономика и управление: цифровые экосистемы.',
-        date: 'Декабрь 2023',
-      },
-      {
-        title: 'Том 10, №3',
-        description: 'Право: регуляторика и защита данных.',
-        date: 'Сентябрь 2023',
-      },
-    ],
-  },
-]
+type ArchiveYear = { year: number; volumes: ApiVolume[] }
 
 export function ArchivePage() {
-  const [openYears, setOpenYears] = useState<Record<number, boolean>>({ 2025: true })
+  const [openYears, setOpenYears] = useState<Record<number, boolean>>({})
+  const [volumes, setVolumes] = useState<ApiVolume[] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    api.getVolumes<ApiVolume[]>({ active_only: false })
+      .then((data) => {
+        setVolumes(data)
+        const years = Array.from(new Set((data || []).map((v) => v.year))).sort((a, b) => b - a)
+        if (years[0]) setOpenYears({ [years[0]]: true })
+      })
+      .catch((e: any) => setError(e?.message || 'Не удалось загрузить архив томов'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const archives: ArchiveYear[] = useMemo(() => {
+    if (!volumes) return []
+    const byYear: Record<number, ApiVolume[]> = {}
+    volumes.forEach((v: ApiVolume) => {
+      if (!byYear[v.year]) byYear[v.year] = []
+      byYear[v.year].push(v)
+    })
+    return Object.entries(byYear)
+      .map(([year, vols]) => ({ year: Number(year), volumes: vols.sort((a, b) => (b.number - a.number)) }))
+      .sort((a, b) => b.year - a.year)
+  }, [volumes])
 
   const toggleYear = (year: number) => {
-    setOpenYears((prev) => ({ ...prev, [year]: !prev[year] }))
+    setOpenYears((prev: Record<number, boolean>) => ({ ...prev, [year]: !prev[year] }))
   }
 
   return (
@@ -88,38 +61,44 @@ export function ArchivePage() {
           </div>
         </div>
 
-        <div className="accordion">
-          {archives.map((group) => {
-            const isOpen = Boolean(openYears[group.year])
-            return (
-              <div className={`accordion-item ${isOpen ? 'accordion-item--open' : ''}`} key={group.year}>
-                <button className="accordion-header" onClick={() => toggleYear(group.year)} aria-expanded={isOpen}>
-                  <div className="accordion-title">
-                    <span className="panel-title">Год {group.year}</span>
-                    <span className="subtitle">{group.volumes.length} выпуск(а)</span>
-                  </div>
-                  <span className="accordion-icon">{isOpen ? '−' : '+'}</span>
-                </button>
-                {isOpen ? (
-                  <div className="accordion-body">
-                    <div className="volume-chip">Тома {group.year}</div>
-                    <ul className="volume-list">
-                      {group.volumes.map((volume) => (
-                        <li key={volume.title} className="volume-item">
-                          <div>
-                            <div className="volume-title">{volume.title}</div>
-                            <div className="subtitle">{volume.description}</div>
-                          </div>
-                          <div className="meta-label">{volume.date}</div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            )
-          })}
-        </div>
+        {loading && <div className="loading">Загрузка...</div>}
+        {error && <div className="alert error">Ошибка: {error}</div>}
+        {!loading && !error && (
+          <div className="accordion">
+            {archives.map((group) => {
+              const isOpen = Boolean(openYears[group.year])
+              return (
+                <div className={`accordion-item ${isOpen ? 'accordion-item--open' : ''}`} key={group.year}>
+                  <button className="accordion-header" onClick={() => toggleYear(group.year)} aria-expanded={isOpen}>
+                    <div className="accordion-title">
+                      <span className="panel-title">Год {group.year}</span>
+                      <span className="subtitle">{group.volumes.length} выпуск(а)</span>
+                    </div>
+                    <span className="accordion-icon">{isOpen ? '−' : '+'}</span>
+                  </button>
+                  {isOpen ? (
+                    <div className="accordion-body">
+                      <div className="volume-chip">Тома {group.year}</div>
+                      <ul className="volume-list">
+                        {group.volumes.map((v) => (
+                          <li key={String(v.id ?? `${v.year}-${v.number}-${v.month ?? 'm'}`)} className="volume-item">
+                            <a href={v.id != null ? `/archive/volumes/${v.id}` : '#'} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                              <div>
+                                <div className="volume-title">Том {v.number}{v.month ? ` (${v.month} мес.)` : ''}</div>
+                                <div className="subtitle">{v.description || v.title_ru || v.title_en || v.title_kz || '—'}</div>
+                              </div>
+                              <div className="meta-label">{v.year}</div>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

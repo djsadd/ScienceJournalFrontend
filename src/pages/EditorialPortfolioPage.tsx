@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
 import type { Article, PagedResponse } from '../shared/types'
+import { formatArticleStatus } from '../shared/labels'
 
 type Filters = {
   status?: string
@@ -23,6 +24,20 @@ const keyOf = (params: Record<string, unknown>) =>
 
 const memoryCache = new Map<string, { at: number; data: PagedResponse<Article> }>()
 
+const STATUS_OPTIONS = [
+  'draft',
+  'submitted',
+  'under_review',
+  'in_review',
+  'editor_check',
+  'reviewer_check',
+  'revisions',
+  'accepted',
+  'rejected',
+  'published',
+  'withdrawn',
+] as const
+
 export default function EditorialPortfolioPage() {
   const [filters, setFilters] = useState<Filters>({ status: undefined })
   const [page, setPage] = useState(1)
@@ -36,6 +51,8 @@ export default function EditorialPortfolioPage() {
       ...filters,
       year: filters.year === '' ? undefined : filters.year,
       article_type: filters.article_type === '' ? undefined : filters.article_type,
+      // When "Все статусы" selected (empty string), send explicit status=all
+      status: !filters.status ? 'all' : filters.status,
       page,
       page_size: pageSize,
     }),
@@ -134,13 +151,10 @@ export default function EditorialPortfolioPage() {
             <div className="filter-group">
               <label className="filter-label">Статус</label>
               <select className="chip-select" name="status" value={filters.status ?? ''} onChange={onInput}>
-                <option value="">(по умолчанию submitted)</option>
-                <option value="submitted">submitted</option>
-                <option value="under_review">under_review</option>
-                <option value="accepted">accepted</option>
-                <option value="published">published</option>
-                <option value="withdrawn">withdrawn</option>
-                <option value="draft">draft</option>
+                <option value="">Все статусы</option>
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>{formatArticleStatus(s, 'ru')}</option>
+                ))}
               </select>
             </div>
             <div className="filter-group">
@@ -167,7 +181,7 @@ export default function EditorialPortfolioPage() {
                     <div className="table__meta">DOI: {a.doi || '—'}</div>
                   </div>
                   <div className="table__cell">{a.article_type}</div>
-                  <div className="table__cell">{a.status}</div>
+                  <div className="table__cell">{formatArticleStatus(a.status, 'ru')}</div>
                   <div className="table__cell">{a.authors.map((x) => `${x.last_name} ${x.first_name}`).join(', ') || '—'}</div>
                   <div className="table__cell table__cell--actions">
                     <div className="actions">

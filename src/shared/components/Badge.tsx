@@ -13,9 +13,15 @@ const statusMap: Record<
   cancelled: { label: 'Отменена', tone: 'muted' },
   pending: { label: 'Ожидает', tone: 'info' },
   in_review: { label: 'На рецензии', tone: 'warn' },
+  under_review: { label: 'На рецензировании', tone: 'warn' },
+  editor_check: { label: 'Проверка редактора', tone: 'info' },
+  reviewer_check: { label: 'Проверка рецензента', tone: 'info' },
   revisions: { label: 'Правки', tone: 'warn' },
+  send_for_revision: { label: 'Отправлено на доработку', tone: 'warn' },
+  sent_for_revision: { label: 'Отправлено на доработку', tone: 'warn' },
   accepted: { label: 'Принято', tone: 'success' },
   rejected: { label: 'Отклонено', tone: 'danger' },
+  resubmission: { label: 'Повторная рецензия', tone: 'warn' },
 }
 
 export function Badge({ status }: BadgeProps) {

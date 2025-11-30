@@ -34,6 +34,10 @@ import type { ReactElement } from 'react'
 import EditorialUnassignedPage from './pages/EditorialUnassignedPage'
 import EditorialPortfolioPage from './pages/EditorialPortfolioPage'
 import EditorArticleDetailPage from './pages/EditorArticleDetailPage'
+import EditorArticleVersionPage from './pages/EditorArticleVersionPage'
+import VolumesPage from './pages/VolumesPage'
+import VolumeDetailPage from './pages/VolumeDetailPage'
+import PublicVolumeDetailPage from './pages/PublicVolumeDetailPage'
 
 function RequireAuth({ children }: { children: ReactElement }) {
   const tokens = api.getTokens()
@@ -69,6 +73,14 @@ function App() {
         element={
           <PublicLayout>
             <ArchivePage />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/archive/volumes/:id"
+        element={
+          <PublicLayout>
+            <PublicVolumeDetailPage />
           </PublicLayout>
         }
       />
@@ -237,11 +249,41 @@ function App() {
         }
       />
       <Route
+        path="/cabinet/editorial2/:id/versions/:versionId"
+        element={
+          <RequireAuth>
+            <MainLayout>
+              <EditorArticleVersionPage />
+            </MainLayout>
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/cabinet/layout"
         element={
           <RequireAuth>
             <MainLayout>
               <LayoutBoard articles={articles} />
+            </MainLayout>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/cabinet/volumes"
+        element={
+          <RequireAuth>
+            <MainLayout>
+              <VolumesPage />
+            </MainLayout>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/cabinet/volumes/:id"
+        element={
+          <RequireAuth>
+            <MainLayout>
+              <VolumeDetailPage />
             </MainLayout>
           </RequireAuth>
         }

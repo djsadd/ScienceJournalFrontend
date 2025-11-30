@@ -2,6 +2,21 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
 import type { Article, PagedResponse } from '../shared/types'
 import './EditorialUnassignedPage.css'
+import { formatArticleStatus } from '../shared/labels'
+
+const STATUS_OPTIONS = [
+  'draft',
+  'submitted',
+  'under_review',
+  'in_review',
+  'editor_check',
+  'reviewer_check',
+  'revisions',
+  'accepted',
+  'rejected',
+  'published',
+  'withdrawn',
+] as const
 
 type Filters = {
   status?: string
@@ -37,6 +52,8 @@ export default function EditorialUnassignedPage() {
       ...filters,
       year: filters.year === '' ? undefined : filters.year,
       article_type: filters.article_type === '' ? undefined : filters.article_type,
+      // When "Все статусы" selected (empty string), send explicit status=all
+      status: !filters.status ? 'all' : filters.status,
       page,
       page_size: pageSize,
     }),
@@ -103,13 +120,10 @@ export default function EditorialUnassignedPage() {
           <option value="review">review</option>
         </select>
         <select name="status" value={filters.status ?? ''} onChange={onInput}>
-          <option value="">Статус (по умолчанию submitted)</option>
-          <option value="submitted">submitted</option>
-          <option value="under_review">under_review</option>
-          <option value="accepted">accepted</option>
-          <option value="published">published</option>
-          <option value="withdrawn">withdrawn</option>
-          <option value="draft">draft</option>
+          <option value="">Все статусы</option>
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>{formatArticleStatus(s, 'ru')}</option>
+          ))}
         </select>
         <button onClick={clearFilters}>Сбросить</button>
       </div>
@@ -123,7 +137,7 @@ export default function EditorialUnassignedPage() {
             <div className="card-head">
               <div className="titles">
                 <div className="title">{a.title_ru || a.title_en || a.title_kz || 'Без заголовка'}</div>
-                <div className="subtitle">DOI: {a.doi || '—'} | Тип: {a.article_type} | Статус: {a.status}</div>
+                <div className="subtitle">DOI: {a.doi || '—'} | Тип: {a.article_type} | Статус: {formatArticleStatus(a.status, 'ru')}</div>
               </div>
               <div className="actions">
                 <a href={a.manuscript_file_url || '#'} target="_blank" rel="noreferrer">Рукопись</a>

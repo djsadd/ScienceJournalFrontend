@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { formatArticleStatus, formatArticleType } from '../shared/labels'
+import ConfirmModal from '../shared/components/ConfirmModal'
+import Toast from '../shared/components/Toast'
 
 // Minimal interfaces matching backend ArticleOut
 interface KeywordOut {
@@ -76,10 +78,93 @@ export default function EditorArticleDetailPage() {
     const fromQuery = params.get('lang') as 'ru' | 'en' | 'kz' | null
     return fromQuery && ['ru', 'en', 'kz'].includes(fromQuery) ? fromQuery : 'ru'
   })
+  // Status update (reject) states
+  const [statusUpdating, setStatusUpdating] = useState(false)
+  const [statusError, setStatusError] = useState<string | null>(null)
+  // Confirm modal + toast
+  const [showRejectConfirm, setShowRejectConfirm] = useState(false)
+  const [toastOpen, setToastOpen] = useState(false)
+  const [toastMessage, setToastMessage] = useState('')
+  // Accept to publication modal
+  const [isAcceptOpen, setIsAcceptOpen] = useState(false)
+  const [volumes, setVolumes] = useState<import('../shared/types').Volume[] | null>(null)
+  const [volumesLoading, setVolumesLoading] = useState(false)
+  const [volumesError, setVolumesError] = useState<string | null>(null)
+  const [addingToVolumeId, setAddingToVolumeId] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!isAcceptOpen) return
+    setVolumesLoading(true)
+    setVolumesError(null)
+    api.getVolumes<import('../shared/types').Volume[]>({ active_only: true })
+      .then(setVolumes)
+      .catch((e: any) => {
+        const message = e?.bodyJson?.detail || e?.message || 'Не удалось загрузить тома'
+        setVolumesError(String(message))
+      })
+      .finally(() => setVolumesLoading(false))
+  }, [isAcceptOpen])
+
+  const handleReject = async () => {
+    if (!data) return
+    setStatusUpdating(true)
+    setStatusError(null)
+    try {
+      const res = await api.changeArticleStatus<{ id: number; status: string }>(data.id, 'rejected')
+      setData({ ...data, status: res.status })
+      setToastMessage('Статья успешно отклонена')
+      setToastOpen(true)
+    } catch (e: any) {
+      const message = e?.bodyJson && (e.bodyJson as any).detail ? (e.bodyJson as any).detail : e?.message || 'Не удалось изменить статус'
+      setStatusError(String(message))
+    } finally {
+      setStatusUpdating(false)
+      setShowRejectConfirm(false)
+    }
+  }
+
+  const handleTakeToWork = async () => {
+    if (!data) return
+    setStatusUpdating(true)
+    setStatusError(null)
+    try {
+      const res = await api.changeArticleStatus<{ id: number; status: string }>(data.id, 'editor_check')
+      setData({ ...data, status: res.status })
+      setToastMessage('Статья взята в работу (Проверка редактора)')
+      setToastOpen(true)
+    } catch (e: any) {
+      const message = e?.bodyJson?.detail || e?.message || 'Не удалось изменить статус'
+      setStatusError(String(message))
+    } finally {
+      setStatusUpdating(false)
+    }
+  }
+
+  const handleSendForRevision = async () => {
+    if (!data) return
+    setStatusUpdating(true)
+    setStatusError(null)
+    try {
+      const res = await api.changeArticleStatus<{ id: number; status: string }>(data.id, 'sent_for_revision')
+      setData({ ...data, status: res.status })
+      setToastMessage('Отправлено автору на доработку')
+      setToastOpen(true)
+    } catch (e: any) {
+      const message = e?.bodyJson?.detail || e?.message || 'Не удалось изменить статус'
+      setStatusError(String(message))
+    } finally {
+      setStatusUpdating(false)
+    }
+  }
 
   const title = useMemo(() => {
     if (!data) return ''
     return (lang === 'ru' ? data.title_ru : lang === 'en' ? data.title_en : data.title_kz) || data.title_ru || data.title_en || data.title_kz || 'Без заголовка'
+  }, [data, lang])
+
+  const abstract = useMemo(() => {
+    if (!data) return null
+    return (lang === 'ru' ? data.abstract_ru : lang === 'en' ? data.abstract_en : data.abstract_kz) || data.abstract_ru || data.abstract_en || data.abstract_kz || null
   }, [data, lang])
 
   type ReviewerFullInfo = {
@@ -294,7 +379,47 @@ export default function EditorArticleDetailPage() {
       {data && (
         <section className="section">
           <div className="panel">
-            <h2 className="panel-title">{title}</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', gap: '1rem', flexWrap: 'wrap' }}>
+              <h2 className="panel-title" style={{ margin: 0 }}>{title}</h2>
+              {data.status !== 'rejected' && (
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {data.status === 'submitted' ? (
+                    <>
+                      <button
+                        className="button button--ghost"
+                        disabled={statusUpdating}
+                        onClick={() => setShowRejectConfirm(true)}
+                      >
+                        Отклонить
+                      </button>
+                      <button
+                        className="button button--primary"
+                        disabled={statusUpdating}
+                        onClick={handleTakeToWork}
+                      >
+                        Взять в работу
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="button button--ghost"
+                        disabled={statusUpdating}
+                        onClick={() => setShowRejectConfirm(true)}
+                      >
+                        Отклонить
+                      </button>
+                      <button className="button button--warn" disabled={statusUpdating} onClick={handleSendForRevision}>
+                        Отправить на доработку
+                      </button>
+                          <button className="button button--primary" onClick={() => setIsAcceptOpen(true)}>
+                            Принять к публикации
+                          </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="article-meta">
               <span className="meta-label">Тип:</span> {formatArticleType(data.article_type, lang)}
               <span className="dot">•</span>
@@ -304,6 +429,17 @@ export default function EditorArticleDetailPage() {
               <span className="dot">•</span>
               <span className="meta-label">Создано:</span> {new Date(data.created_at).toLocaleString()}
             </div>
+            {statusError && (
+              <div className="alert error" style={{ marginTop: '0.75rem' }}>Ошибка смены статуса: {statusError}</div>
+            )}
+            {abstract && (
+              <div style={{ marginTop: '1.5rem', lineHeight: '1.6', color: '#444' }}>
+                <h4 style={{ marginBottom: '0.75rem', fontSize: '0.95rem', fontWeight: 600, color: '#555' }}>
+                  {lang === 'ru' ? 'Аннотация' : lang === 'en' ? 'Abstract' : 'Аңдатпа'}
+                </h4>
+                <p style={{ whiteSpace: 'pre-wrap', textAlign: 'justify' }}>{abstract}</p>
+              </div>
+            )}
           </div>
 
           <div className="panel">
@@ -379,7 +515,12 @@ export default function EditorArticleDetailPage() {
                 <div className="table__body">
                   {data.versions.map((v) => (
                     <div className="table__row" key={v.id}>
-                      <div className="table__cell">{v.id}</div>
+                      <div className="table__cell">
+                        <a
+                          href={`/cabinet/editorial2/${data.id}/versions/${v.id}`}
+                          style={{ textDecoration: 'underline' }}
+                        >{v.id}</a>
+                      </div>
                       <div className="table__cell">{new Date(v.created_at).toLocaleString()}</div>
                       <div className="table__cell">{v.authors?.length ?? 0}</div>
                       <div className="table__cell">{v.keywords?.length ?? 0}</div>
@@ -395,7 +536,9 @@ export default function EditorArticleDetailPage() {
           <div className="panel">
             <div className="panel-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
               <h3 className="panel-title" style={{ margin: 0 }}>Рецензенты</h3>
-              <button className="button button--primary" onClick={() => setIsAddReviewerOpen(true)}>Добавить рецензента</button>
+              {data.status !== 'rejected' && (
+                <button className="button button--primary" onClick={() => setIsAddReviewerOpen(true)}>Добавить рецензента</button>
+              )}
             </div>
             {reviewListError && <div className="alert error">Ошибка: {reviewListError}</div>}
             {reviewListLoading ? (
@@ -449,6 +592,82 @@ export default function EditorArticleDetailPage() {
         </section>
       )}
 
+      {isAcceptOpen && (
+        <div className="modal-backdrop" onClick={() => setIsAcceptOpen(false)}>
+          <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ margin: 0 }}>Добавить статью в том</h3>
+              <button className="modal__close" onClick={() => setIsAcceptOpen(false)}>×</button>
+            </div>
+            <div className="modal__body">
+              {volumesError && <div className="alert error">Ошибка: {volumesError}</div>}
+              {volumesLoading && <div className="loading">Загрузка томов...</div>}
+              {!volumesLoading && !volumesError && volumes && volumes.length === 0 && (
+                <div className="table__empty">Активных томов не найдено.</div>
+              )}
+              {!volumesLoading && !volumesError && volumes && volumes.length > 0 && (
+                <div className="table">
+                  <div className="table__head">
+                    <span>Том</span>
+                    <span>Заголовок</span>
+                    <span>Статей</span>
+                    <span>Действия</span>
+                  </div>
+                  <div className="table__body">
+                    {volumes.map((v) => (
+                      <div className="table__row table__row--align" key={String(v.id ?? `${v.year}-${v.number}-${v.month ?? 'm'}`)}>
+                        <div className="table__cell">
+                          <div className="table__title">Том {v.number} / {v.year}{v.month ? ` (${v.month} мес.)` : ''}</div>
+                        </div>
+                        <div className="table__cell">{v.title_ru || v.title_en || v.title_kz || '—'}</div>
+                        <div className="table__cell">{v.articles?.length ?? 0}</div>
+                        <div className="table__cell">
+                          <button
+                            className="button button--primary button--compact"
+                            disabled={addingToVolumeId === (v.id ?? null) || statusUpdating}
+                            onClick={async () => {
+                              if (!data?.id || v.id == null) return
+                              setAddingToVolumeId(v.id)
+                              setStatusError(null)
+                              try {
+                                // First, set status to published
+                                const res = await api.changeArticleStatus<{ id: number; status: string }>(data.id, 'published')
+                                setData({ ...data, status: res.status })
+                                // Then, add to selected volume
+                                const currentIds = (v.articles || []).map((a) => Number((a as any).id)).filter((n) => Number.isFinite(n))
+                                const nextIds = Array.from(new Set([...currentIds, Number(data.id)]))
+                                await api.updateVolume(v.id, { article_ids: nextIds })
+                                setToastMessage('Статья опубликована и добавлена в том')
+                                setToastOpen(true)
+                                // Refresh volumes in modal to reflect new counts
+                                try {
+                                  const updated = await api.getVolumes<import('../shared/types').Volume[]>({ active_only: true })
+                                  setVolumes(updated)
+                                } catch {}
+                                setIsAcceptOpen(false)
+                              } catch (e: any) {
+                                const detail = e?.bodyJson?.detail
+                                const message = detail || e?.message || 'Не удалось выполнить публикацию или добавление в том'
+                                setStatusError(String(message))
+                              } finally {
+                                setAddingToVolumeId(null)
+                              }
+                            }}
+                          >Добавить в том</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button className="button button--ghost" onClick={() => setIsAcceptOpen(false)}>Отмена</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Removed old review details modal tied to mock data */}
 
       {isAddReviewerOpen && (
@@ -493,7 +712,7 @@ export default function EditorArticleDetailPage() {
                         <div className="table__cell">{r.id}</div>
                         <div className="table__cell">{r.is_active == null ? '—' : r.is_active ? 'Да' : 'Нет'}</div>
                         <div className="table__cell table__cell--actions">
-                          {assigningReviewerId === r.id ? (
+                          {data!.status !== 'rejected' && assigningReviewerId === r.id ? (
                             <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
                               <input
                                 className="text-input"
@@ -544,12 +763,12 @@ export default function EditorArticleDetailPage() {
                                 onClick={() => { setAssigningReviewerId(null); setAssignDeadline('') }}
                               >Отмена</button>
                             </div>
-                          ) : (
+                          ) : data!.status !== 'rejected' ? (
                             <button
                               className="button button--primary button--compact"
                               onClick={() => { setAssigningReviewerId(r.id); setAssignError(null); setAssignSuccess(null); }}
                             >Назначить</button>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     ))
@@ -646,6 +865,21 @@ export default function EditorArticleDetailPage() {
           </div>
         </div>
       )}
+      <ConfirmModal
+        open={showRejectConfirm}
+        title="Отклонение статьи"
+        message="Вы действительно хотите отклонить эту статью? Это действие необратимо."
+        confirmText={statusUpdating ? 'Отклоняем...' : 'Отклонить'}
+        cancelText="Отмена"
+        onConfirm={handleReject}
+        onCancel={() => (!statusUpdating && setShowRejectConfirm(false))}
+      />
+      <Toast
+        open={toastOpen}
+        message={toastMessage}
+        onClose={() => { setToastOpen(false); setToastMessage('') }}
+        durationMs={4000}
+      />
     </div>
   )
 }

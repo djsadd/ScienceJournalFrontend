@@ -180,10 +180,15 @@ export const api = {
     page_size?: number
   }) => request<T>('/articles/unassigned', 'GET', { params }),
   getEditorArticleDetail: <T>(id: string | number) => request<T>(`/articles/editor/${id}`, 'GET'),
+  getEditorArticleVersion: <T>(articleId: string | number, versionId: string | number) =>
+    request<T>(`/articles/editor/${articleId}/versions/${versionId}`, 'GET'),
   assignReviewers: <T>(articleId: string | number, body: { reviewer_ids: number[]; deadline?: string }) =>
     request<T>(`/articles/${articleId}/assign_reviewers`, 'POST', { json: body }),
   getArticleReviewers: <T>(articleId: string | number) => request<T>(`/articles/${articleId}/reviewers`, 'GET'),
   getReviewers: <T>(language?: 'ru' | 'kz') => request<T>('/users/reviewers', 'GET', { params: { language } }),
+  // Change article status (editor role required)
+  changeArticleStatus: <T>(articleId: string | number, status: string) =>
+    request<T>(`/articles/${articleId}/status`, 'PATCH', { json: { status } }),
   // Reviews
   getReviewById: <T>(reviewId: number | string) => request<T>(`/reviews/${reviewId}`, 'GET'),
   getMyReviews: <T>() => request<T>('/reviews/my-reviews', 'GET'),
@@ -197,4 +202,30 @@ export const api = {
       ? request<T>(path, 'PATCH', { json: { deadline: deadlineIso } })
       : request<T>(path, 'PATCH')
   },
+  // Volumes (editor section "Мои тома")
+  getVolumes: <T>(params?: { year?: number; number?: number; month?: number; active_only?: boolean }) =>
+    request<T>('/volumes', 'GET', { params }),
+  getVolumeById: <T>(id: number | string) => request<T>(`/volumes/${id}`, 'GET'),
+  createVolume: <T>(body: {
+    year: number
+    number: number
+    month?: number | null
+    title_kz?: string | null
+    title_en?: string | null
+    title_ru?: string | null
+    description?: string | null
+    is_active?: boolean
+    article_ids?: number[]
+  }) => request<T>('/volumes', 'POST', { json: body }),
+  updateVolume: <T>(id: number | string, body: Partial<{
+    year: number
+    number: number
+    month: number | null
+    title_kz: string | null
+    title_en: string | null
+    title_ru: string | null
+    description: string | null
+    is_active: boolean
+    article_ids: number[]
+  }>) => request<T>(`/volumes/${id}`, 'PATCH', { json: body }),
 }

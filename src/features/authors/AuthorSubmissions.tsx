@@ -12,12 +12,15 @@ interface WithdrawResponse {
   message: string
 }
 
-const getActionLabel = (status: Article['status']) => {
+const getActionLabel = (status: Article['status'] | 'send_for_revision' | 'sent_for_revision') => {
   switch (status) {
     case 'in_review':
       return 'Смотреть'
     case 'revisions':
       return 'Скачать рецензию'
+    case 'send_for_revision':
+    case 'sent_for_revision':
+      return 'Отправлено на доработку'
     case 'accepted':
       return 'PDF'
     default:
@@ -182,6 +185,14 @@ export function AuthorSubmissions() {
                         >
                           Отозвать
                         </button>
+                      )}
+                      {(['withdrawn','revisions'].includes(article.status) || (article.status as any) === 'send_for_revision' || (article.status as any) === 'sent_for_revision') && (
+                        <Link
+                          className="button button--primary button--compact"
+                          to={`/cabinet/my-articles/${article.id}`}
+                        >
+                          Редактировать и отправить
+                        </Link>
                       )}
                     </div>
                   </div>

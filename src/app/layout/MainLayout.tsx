@@ -26,41 +26,70 @@ const roleNav: Record<
 > = {
   author: [
     {
+      title: 'Главная',
+      items: [
+        { label: 'Главная', path: '/cabinet' },
+        { label: 'Профиль', path: '/cabinet/profile' },
+      ],
+    },
+    {
       title: 'Работа с рукописями',
       items: [
         { label: 'Мои рукописи', path: '/cabinet/submissions' },
         { label: 'Новая рукопись', path: '/cabinet/submission' },
         { label: 'Авторский договор', path: '/authors/contract' },
-        { label: 'Профиль', path: '/cabinet/profile' },
       ],
     },
   ],
   editor: [
     {
+      title: 'Главная',
+      items: [
+        { label: 'Главная', path: '/cabinet' },
+        { label: 'Профиль', path: '/cabinet/profile' },
+      ],
+    },
+    {
       title: 'Редакционный поток',
       items: [
         { label: 'Редакционный портфель', path: '/cabinet/editorial2' },
-        { label: 'Рецензии и отзывы', path: '/cabinet/reviews' },
-        { label: 'Профиль', path: '/cabinet/profile' },
+      ],
+    },
+    {
+      title: 'Коллекция томов',
+      items: [
+        { label: 'Мои тома', path: '/cabinet/volumes' },
       ],
     },
   ],
   reviewer: [
     {
+      title: 'Главная',
+      items: [
+        { label: 'Главная', path: '/cabinet' },
+        { label: 'Профиль', path: '/cabinet/profile' },
+      ],
+    },
+    {
       title: 'Рецензирование',
       items: [
         { label: 'Мои рецензии', path: '/cabinet/reviews' },
-        { label: 'Профиль', path: '/cabinet/profile' },
       ],
     },
   ],
   designer: [
     {
+      title: 'Главная',
+      items: [
+        { label: 'Главная', path: '/cabinet' },
+        { label: 'Профиль', path: '/cabinet/profile' },
+      ],
+    },
+    {
       title: 'Верстка номеров',
       items: [
         { label: 'Макеты и номера', path: '/cabinet/layout' },
         { label: 'Задачи (скоро)', tag: 'скоро' },
-        { label: 'Профиль', path: '/cabinet/profile' },
       ],
     },
   ],

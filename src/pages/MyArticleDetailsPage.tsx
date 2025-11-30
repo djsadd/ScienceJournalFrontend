@@ -403,7 +403,7 @@ export function MyArticleDetailsPage() {
 
       <div className="panel">
         <p className="eyebrow">Заголовок</p>
-        {article.status === 'withdrawn' ? (
+        {(['withdrawn', 'revisions', 'send_for_revision', 'sent_for_revision'].includes(article.status)) ? (
           <>
             <div className="form-field">
               <label className="form-label">Заголовок (RU)</label>
@@ -452,12 +452,14 @@ export function MyArticleDetailsPage() {
             <div className="form-label">Статус</div>
             <div
               className={
-                article.status === 'withdrawn'
+                ['withdrawn', 'revisions', 'send_for_revision', 'sent_for_revision'].includes(article.status)
                   ? 'status-badge status-badge--withdrawn'
                   : 'form-hint'
               }
             >
-              {article.status === 'withdrawn' ? 'Отозвано' : article.status}
+              {article.status === 'withdrawn' ? 'Отозвано' :
+               article.status === 'revisions' ? 'Правки' :
+               (article.status === 'send_for_revision' || article.status === 'sent_for_revision') ? 'Отправлено на доработку' : article.status}
             </div>
           </div>
           <div className="form-field">
@@ -472,7 +474,7 @@ export function MyArticleDetailsPage() {
           </div>
           <div className="form-field">
             <div className="form-label">DOI</div>
-            {article.status === 'withdrawn' ? (
+            {(['withdrawn', 'revisions', 'send_for_revision', 'sent_for_revision'].includes(article.status)) ? (
               <input
                 className="text-input"
                 value={article.doi ?? ''}
@@ -489,7 +491,7 @@ export function MyArticleDetailsPage() {
 
       <div className="panel">
         <p className="eyebrow">Аннотация</p>
-        {article.status === 'withdrawn' ? (
+        {(['withdrawn', 'revisions', 'send_for_revision', 'sent_for_revision'].includes(article.status)) ? (
           <>
             <div className="form-field">
               <label className="form-label">Аннотация (RU)</label>
@@ -635,7 +637,7 @@ export function MyArticleDetailsPage() {
 
       <div className="panel">
         <p className="eyebrow">Авторы</p>
-        {article.status !== 'withdrawn' ? (
+        {(!['withdrawn', 'revisions', 'send_for_revision', 'sent_for_revision'].includes(article.status)) ? (
           <>
             {article.authors.length === 0 ? (
               <div className="table__empty">Список авторов не заполнен.</div>
@@ -790,7 +792,7 @@ export function MyArticleDetailsPage() {
             ) : (
               <div className="form-hint">Не загружено</div>
             )}
-            {article.status === 'withdrawn' ? (
+            {(['withdrawn', 'revisions', 'send_for_revision', 'sent_for_revision'].includes(article.status)) ? (
               <div style={{ marginTop: '0.5rem' }}>
                 <input type="file" className="file-input" onChange={(e) => setFileManuscript(e.target.files?.[0] ?? null)} />
                 {fileManuscript ? <div className="form-hint">Новый файл: {fileManuscript.name}</div> : null}
@@ -823,7 +825,7 @@ export function MyArticleDetailsPage() {
             ) : (
               <div className="form-hint">Не загружено</div>
             )}
-            {article.status === 'withdrawn' ? (
+            {(['withdrawn', 'revisions', 'send_for_revision', 'sent_for_revision'].includes(article.status)) ? (
               <div style={{ marginTop: '0.5rem' }}>
                 <input type="file" className="file-input" onChange={(e) => setFileAntiplagiarism(e.target.files?.[0] ?? null)} />
                 {fileAntiplagiarism ? <div className="form-hint">Новый файл: {fileAntiplagiarism.name}</div> : null}
@@ -856,7 +858,7 @@ export function MyArticleDetailsPage() {
             ) : (
               <div className="form-hint">Не загружено</div>
             )}
-            {article.status === 'withdrawn' ? (
+            {(['withdrawn', 'revisions', 'send_for_revision', 'sent_for_revision'].includes(article.status)) ? (
               <div style={{ marginTop: '0.5rem' }}>
                 <input type="file" className="file-input" onChange={(e) => setFileAuthorInfo(e.target.files?.[0] ?? null)} />
                 {fileAuthorInfo ? <div className="form-hint">Новый файл: {fileAuthorInfo.name}</div> : null}
@@ -899,7 +901,7 @@ export function MyArticleDetailsPage() {
         </div>
       </div>
 
-      {article.status === 'withdrawn' && (
+      {(['withdrawn', 'revisions', 'send_for_revision', 'sent_for_revision'].includes(article.status)) && (
         <div className="panel">
           <div className="section-heading">
             <div>
