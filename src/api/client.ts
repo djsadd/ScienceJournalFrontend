@@ -1,4 +1,6 @@
-const API_BASE = 'http://localhost:8000/'
+// Prefer env-configurable API base; default to Nginx proxy path
+const envApiBase = (import.meta as any)?.env?.VITE_API_BASE as string | undefined
+const API_BASE = (envApiBase ?? '/api/').replace(/\/$/, '/')
 const TOKEN_KEY = 'sj_tokens'
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -31,7 +33,11 @@ export class ApiError extends Error {
 }
 
 const buildUrl = (path: string, params?: RequestOptions['params']) => {
-  const url = new URL(path.replace(/^\//, ''), API_BASE)
+  const base = API_BASE
+  const isAbsolute = /^https?:\/\//i.test(path)
+  const url = isAbsolute
+    ? new URL(path)
+    : new URL(path.replace(/^\//, ''), base)
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value === undefined) return

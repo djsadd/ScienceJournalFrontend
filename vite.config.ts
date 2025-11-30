@@ -8,5 +8,8 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 3000,
     allowedHosts: ['journal.tau-edu.kz']
+  },
+  define: {
+    'import.meta.env.VITE_API_BASE': JSON.stringify(process.env.VITE_API_BASE || '/api/')
   }
 })
