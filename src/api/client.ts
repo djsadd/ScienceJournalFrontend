@@ -1,6 +1,52 @@
-// Prefer env-configurable API base; default to Nginx proxy path
+// Prefer env-configurable API base but fall back to the current host when the
+// environment was built against localhost so remote clients talk to the server.
 const envApiBase = (import.meta as any)?.env?.VITE_API_BASE as string | undefined
-const API_BASE = (envApiBase ?? '/api/').replace(/\/$/, '/')
+const LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1'])
+
+const runtimeOrigin = typeof window !== 'undefined' ? window.location.origin : undefined
+const runtimeHostname = typeof window !== 'undefined' ? window.location.hostname : undefined
+
+const isLocalhostUrl = (value: string) => /^https?:\/\/(?:localhost|127\.0\.0\.1|::1)(?::\d+)?\/?/i.test(value)
+const ensureTrailingSlash = (value: string) => (value.endsWith('/') ? value : `${value}/`)
+
+const getFallbackBase = () => {
+  if (runtimeOrigin) {
+    try {
+      return new URL('/api/', runtimeOrigin).toString()
+    } catch {
+      // Fall back to localhost if origin is malformed or not available
+    }
+  }
+  return 'http://localhost/api/'
+}
+
+const shouldOverrideLocalhostBase = (base: string) =>
+  runtimeHostname != null && !LOCALHOST_HOSTNAMES.has(runtimeHostname) && isLocalhostUrl(base)
+
+const toAbsoluteBase = (value: string) => {
+  if (/^https?:\/\//i.test(value)) {
+    return value
+  }
+  const originFallback = runtimeOrigin ?? 'http://localhost'
+  try {
+    return new URL(value, originFallback).toString()
+  } catch {
+    return getFallbackBase()
+  }
+}
+
+const resolvedApiBase = (() => {
+  const fallback = getFallbackBase()
+  if (envApiBase) {
+    if (shouldOverrideLocalhostBase(envApiBase)) {
+      return ensureTrailingSlash(toAbsoluteBase(fallback))
+    }
+    return ensureTrailingSlash(toAbsoluteBase(envApiBase))
+  }
+  return ensureTrailingSlash(toAbsoluteBase(fallback))
+})()
+
+const API_BASE = resolvedApiBase
 const TOKEN_KEY = 'sj_tokens'
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
